@@ -1,0 +1,105 @@
+{
+  "domains": [
+    {
+      "name": "producao",
+      "business_terms": ["producao", "produzido", "volume", "ordem", "planta", "fabrica", "mes", "periodo"],
+      "chart_recommendation": "grafico de colunas por mes e planta"
+    },
+    {
+      "name": "faturamento",
+      "business_terms": ["faturamento", "venda", "receita", "nota fiscal", "cliente", "mes", "regional"],
+      "chart_recommendation": "grafico de linhas ou colunas por mes"
+    },
+    {
+      "name": "compras",
+      "business_terms": ["compra", "fornecedor", "pedido", "gasto", "valor comprado", "material"],
+      "chart_recommendation": "grafico de barras por fornecedor ou material"
+    }
+  ],
+  "tables": [
+    {
+      "name": "AFKO",
+      "module": "PP",
+      "domain": "producao",
+      "description": "Cabecalho das ordens de producao",
+      "business_terms": ["producao", "ordem", "planta", "volume produzido", "data de inicio", "quantidade planejada"],
+      "join_keys": ["AUFNR", "WERKS"],
+      "fields": [
+        {"name": "AUFNR", "label": "ordem_producao", "type": "text", "description": "Numero da ordem de producao"},
+        {"name": "WERKS", "label": "planta", "type": "text", "description": "Codigo da planta"},
+        {"name": "GSTRP", "label": "data_inicio", "type": "date", "description": "Data de inicio da ordem"},
+        {"name": "GLTRP", "label": "data_fim", "type": "date", "description": "Data de fim da ordem"},
+        {"name": "GAMNG", "label": "volume_producao", "type": "number", "description": "Quantidade total planejada/produzida"}
+      ]
+    },
+    {
+      "name": "AFPO",
+      "module": "PP",
+      "domain": "producao",
+      "description": "Itens da ordem de producao",
+      "business_terms": ["material produzido", "item da ordem", "quantidade da ordem"],
+      "join_keys": ["AUFNR", "MATNR"],
+      "fields": [
+        {"name": "AUFNR", "label": "ordem_producao", "type": "text", "description": "Numero da ordem de producao"},
+        {"name": "MATNR", "label": "material", "type": "text", "description": "Codigo do material"},
+        {"name": "PSMNG", "label": "quantidade_item", "type": "number", "description": "Quantidade prevista do item"}
+      ]
+    },
+    {
+      "name": "VBRK",
+      "module": "SD",
+      "domain": "faturamento",
+      "description": "Cabecalho do documento de faturamento",
+      "business_terms": ["faturamento", "nota fiscal", "cliente", "receita", "regional", "data de faturamento"],
+      "join_keys": ["VBELN", "KUNNR"],
+      "fields": [
+        {"name": "VBELN", "label": "documento_faturamento", "type": "text", "description": "Numero do documento de faturamento"},
+        {"name": "FKDAT", "label": "data_faturamento", "type": "date", "description": "Data de faturamento"},
+        {"name": "KUNNR", "label": "cliente", "type": "text", "description": "Codigo do cliente"},
+        {"name": "VKORG", "label": "organizacao_vendas", "type": "text", "description": "Organizacao de vendas"}
+      ]
+    },
+    {
+      "name": "VBRP",
+      "module": "SD",
+      "domain": "faturamento",
+      "description": "Itens do documento de faturamento",
+      "business_terms": ["valor faturado", "item faturado", "material faturado", "quantidade faturada"],
+      "join_keys": ["VBELN", "MATNR"],
+      "fields": [
+        {"name": "VBELN", "label": "documento_faturamento", "type": "text", "description": "Numero do documento de faturamento"},
+        {"name": "MATNR", "label": "material", "type": "text", "description": "Codigo do material"},
+        {"name": "FKIMG", "label": "quantidade_faturada", "type": "number", "description": "Quantidade faturada"},
+        {"name": "NETWR", "label": "valor_faturado", "type": "number", "description": "Valor liquido do item"}
+      ]
+    },
+    {
+      "name": "EKKO",
+      "module": "MM",
+      "domain": "compras",
+      "description": "Cabecalho do pedido de compra",
+      "business_terms": ["compra", "pedido", "fornecedor", "data do pedido", "grupo de compras"],
+      "join_keys": ["EBELN", "LIFNR"],
+      "fields": [
+        {"name": "EBELN", "label": "pedido_compra", "type": "text", "description": "Numero do pedido de compra"},
+        {"name": "BEDAT", "label": "data_pedido", "type": "date", "description": "Data do pedido"},
+        {"name": "LIFNR", "label": "fornecedor", "type": "text", "description": "Codigo do fornecedor"},
+        {"name": "EKGRP", "label": "grupo_compras", "type": "text", "description": "Grupo de compras"}
+      ]
+    },
+    {
+      "name": "EKPO",
+      "module": "MM",
+      "domain": "compras",
+      "description": "Itens do pedido de compra",
+      "business_terms": ["material comprado", "valor comprado", "quantidade comprada"],
+      "join_keys": ["EBELN", "MATNR"],
+      "fields": [
+        {"name": "EBELN", "label": "pedido_compra", "type": "text", "description": "Numero do pedido de compra"},
+        {"name": "MATNR", "label": "material", "type": "text", "description": "Codigo do material"},
+        {"name": "MENGE", "label": "quantidade_comprada", "type": "number", "description": "Quantidade comprada"},
+        {"name": "NETWR", "label": "valor_comprado", "type": "number", "description": "Valor liquido do item"}
+      ]
+    }
+  ]
+}

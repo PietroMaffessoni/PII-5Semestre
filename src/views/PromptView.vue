@@ -89,6 +89,17 @@ onMounted(() => {
 
         <section v-if="result" class="result-grid">
           <article class="result-card">
+            <h2>Interpretacao da pergunta</h2>
+            <ul>
+              <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
+              <li><strong>Metrica:</strong> {{ result.interpretation.metric }}</li>
+              <li><strong>Dimensoes:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
+              <li><strong>Periodo:</strong> ultimos {{ result.interpretation.period_months }} meses</li>
+              <li><strong>Visual sugerido:</strong> {{ result.interpretation.chart_suggestion }}</li>
+            </ul>
+          </article>
+
+          <article class="result-card">
             <h2>Tabelas sugeridas</h2>
             <ul>
               <li v-for="item in result.suggested_tables" :key="item">{{ item }}</li>
@@ -99,6 +110,24 @@ onMounted(() => {
             <h2>Filtros sugeridos</h2>
             <ul>
               <li v-for="item in result.suggested_filters" :key="item">{{ item }}</li>
+            </ul>
+          </article>
+
+          <article class="result-card result-card--wide">
+            <h2>Campos relevantes</h2>
+            <div class="field-grid">
+              <div v-for="item in result.relevant_fields" :key="`${item.table}-${item.field}`" class="field-chip">
+                <strong>{{ item.table }}.{{ item.field }}</strong>
+                <span>{{ item.label }}</span>
+                <small>{{ item.description }}</small>
+              </div>
+            </div>
+          </article>
+
+          <article class="result-card result-card--wide">
+            <h2>Joins sugeridos</h2>
+            <ul>
+              <li v-for="item in result.join_suggestions" :key="item">{{ item }}</li>
             </ul>
           </article>
 
@@ -227,6 +256,27 @@ button:disabled {
 .result-card ul {
   margin: 1rem 0 0;
   padding-left: 1.1rem;
+  color: #4f647a;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.field-chip {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem;
+  border-radius: 16px;
+  background: #f5f8fc;
+  border: 1px solid rgba(16, 36, 58, 0.08);
+}
+
+.field-chip span,
+.field-chip small {
   color: #4f647a;
 }
 
