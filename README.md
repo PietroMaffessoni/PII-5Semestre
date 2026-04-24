@@ -93,10 +93,18 @@ npm run build
 
 ```bash
 cd services/python-api
-python -m venv .venv
-source .venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
+
+Teste de conexao com o banco:
+
+```bash
+cd services/python-api
+source venv/bin/activate
+python test_db_connection.py
 ```
 
 ### 3. Pipeline de IA

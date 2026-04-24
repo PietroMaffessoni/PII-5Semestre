@@ -4,7 +4,6 @@ dist-ssr/
 .DS_Store
 *.log
 .env
-.env.*
 .vscode/*
 !.vscode/extensions.json
 __pycache__/
