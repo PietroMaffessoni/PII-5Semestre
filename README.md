@@ -29,12 +29,13 @@ Reduzir o tempo gasto com solicitações técnicas repetitivas de extração e t
 ├── data/
 │   ├── raw/
 │   └── processed/
-├── klabin30-pi/                 # frontend Vue
-│   ├── src/
-│   │   ├── components/
-│   │   ├── data/
-│   │   └── ...
+├── src/                         # frontend Vue na raiz
+│   ├── components/
+│   ├── data/
 │   └── ...
+├── index.html
+├── vite.config.js
+├── package.json
 └── services/
     ├── python-ai/
     │   ├── src/
@@ -78,7 +79,6 @@ Reduzir o tempo gasto com solicitações técnicas repetitivas de extração e t
 ### 1. Frontend Vue
 
 ```bash
-cd klabin30-pi
 npm install
 npm run dev
 ```
@@ -86,7 +86,6 @@ npm run dev
 Build de produção:
 
 ```bash
-cd klabin30-pi
 npm run build
 ```
 
