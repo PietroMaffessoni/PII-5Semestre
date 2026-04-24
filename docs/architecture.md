@@ -10,17 +10,14 @@ O projeto foi dividido em três blocos:
 
 ## Decisão oficial de persistência
 
-- **Qdrant** será o banco vetorial.
-- **PostgreSQL** será o banco de apoio.
+- **PostgreSQL + pgvector** será a camada oficial de persistência vetorial e relacional.
 
-### Responsabilidades do Qdrant
+### Responsabilidades do PostgreSQL + pgvector
 
 - armazenar embeddings do dicionário SAP;
 - indexar chunks, tabelas, campos e descrições técnicas;
-- suportar retrieval semântico e filtros por payload.
-
-### Responsabilidades do PostgreSQL
-
+- suportar retrieval semântico;
+- combinar vetores com filtros e joins SQL;
 - Armazenar usuários e dados de autenticação;
 - Manter sessões, histórico de chat e mensagens;
 - Persistir SQL gerado, feedback, aprovações e logs de auditoria;
@@ -30,7 +27,7 @@ O projeto foi dividido em três blocos:
 
 1. O frontend envia uma pergunta de negocio.
 2. A API normaliza a requisição e chama o pipeline de geração.
-3. O pipeline consulta embeddings e metadados do dicionário SAP indexado no banco vetorial.
+3. O pipeline consulta embeddings e metadados do dicionário SAP indexados no PostgreSQL com pgvector.
 4. O pipeline combina recuperação semântica com filtros estruturados.
 5. A API devolve tabelas sugeridas, campos, filtros, joins, justificativa e rascunho de SQL para uso no Power BI.
 

@@ -11,13 +11,11 @@ Reduzir o tempo gasto com solicitações técnicas repetitivas de extração e t
 - **Frontend:** Vue 3 + Vite
 - **API de aplicação:** Python + FastAPI
 - **Pipeline de IA e dados:** Python
-- **Banco vetorial recomendado:** Qdrant
-- **Banco de apoio oficial:** PostgreSQL
+- **Banco vetorial e de apoio oficial:** PostgreSQL + pgvector
 
 ## Bancos de dados
 
-- **Qdrant** para embeddings, retrieval e indexação vetorial do dicionário SAP.
-- **PostgreSQL** para usuários, login, sessões, histórico de chats, auditoria, feedback e rastreio das consultas SQL geradas.
+- **PostgreSQL + pgvector** para embeddings, retrieval, indexação vetorial do dicionário SAP, usuários, login, sessões, histórico de chats, auditoria, feedback e rastreio das consultas SQL geradas.
 
 ## Estrutura do repositório
 
@@ -54,20 +52,17 @@ Reduzir o tempo gasto com solicitações técnicas repetitivas de extração e t
 
 1. O usuário descreve uma pergunta de negócio.
 2. A API interpreta a intenção e envia o contexto para o pipeline de IA.
-3. O pipeline consulta o dicionário de dados SAP indexado na base vetorial.
+3. O pipeline consulta o dicionário de dados SAP indexado no PostgreSQL com pgvector.
 4. A IA retorna tabelas, campos, filtros, joins sugeridos e um rascunho de SQL para uso no Power BI.
 5. O frontend apresenta o resultado e permite refinamento, validação e histórico.
 
 ## Papel de cada banco
 
-### Qdrant
+### PostgreSQL + pgvector
 
 - indexação vetorial do dicionário SAP;
 - busca semântica de tabelas, campos e descrições técnicas;
-- filtros por metadados para restringir modulo, sensibilidade, origem e contexto.
-
-### PostgreSQL
-
+- filtros por metadados e joins SQL no mesmo banco;
 - cadastro de usuários;
 - autenticação e controle de sessão;
 - histórico de chats e mensagens;

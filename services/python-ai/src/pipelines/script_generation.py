@@ -12,3 +12,16 @@ def retrieve_relevant_tables(question: str) -> list[dict[str, str]]:
         }
         for table in tables
     ]
+
+
+def pgvector_query_stub() -> str:
+    return """
+    SELECT
+      table_name,
+      field_name,
+      module,
+      description
+    FROM sap_dictionary_embeddings
+    ORDER BY embedding <-> %(embedding)s
+    LIMIT 10;
+    """
