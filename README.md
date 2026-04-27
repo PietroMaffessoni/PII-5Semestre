@@ -107,6 +107,6 @@ python test_db_connection.py
 ```bash
 cd services/python-ai
 python -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate (.\.venv\Scripts\Activate.ps1  ; Se estiver no windows)
 pip install -r requirements.txt
 ```
