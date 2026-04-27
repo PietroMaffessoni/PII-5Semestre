@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import * as echarts from 'echarts'
 
 import { generateScript, getAuthenticatedUser } from '../services/api'
 import { clearAuthSession, getCurrentUser } from '../services/auth'
@@ -12,6 +13,8 @@ const errorMessage = ref('')
 const isLoading = ref(false)
 const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
+const chartElement = ref(null)
+let chartInstance = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
@@ -22,6 +25,38 @@ const previewColumns = computed(() => {
   }
 
   return Object.keys(result.value.preview_rows[0])
+})
+const chartConfig = computed(() => {
+  const rows = result.value?.preview_rows || []
+  if (!rows.length) {
+    return null
+  }
+
+  const columns = Object.keys(rows[0])
+  const dimensionColumns = columns.filter((column) => {
+    if (column === 'mes') {
+      return true
+    }
+
+    return typeof rows[0][column] === 'string'
+  })
+  const numericColumns = columns.filter((column) =>
+    rows.every((row) => row[column] !== null && row[column] !== '' && !Number.isNaN(Number(row[column]))),
+  )
+
+  const categoryColumn = dimensionColumns[0] || columns[0]
+  const valueColumn = numericColumns[0]
+
+  if (!categoryColumn || !valueColumn) {
+    return null
+  }
+
+  return {
+    categoryColumn,
+    valueColumn,
+    categories: rows.map((row) => formatPreviewValue(categoryColumn, row[categoryColumn])),
+    seriesData: rows.map((row) => Number(row[valueColumn])),
+  }
 })
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -65,6 +100,80 @@ function formatPreviewValue(column, value) {
   return value
 }
 
+function disposeChart() {
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+}
+
+async function renderChart() {
+  await nextTick()
+
+  if (!chartElement.value || !chartConfig.value) {
+    disposeChart()
+    return
+  }
+
+  if (!chartInstance) {
+    chartInstance = echarts.init(chartElement.value)
+  }
+
+  const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
+  chartInstance.setOption({
+    animationDuration: 500,
+    color: ['#1e5d8f'],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter(params) {
+        const item = params[0]
+        const value = isCurrencySeries
+          ? currencyFormatter.format(Number(item.value))
+          : Number(item.value).toLocaleString('pt-BR')
+        return `${item.axisValue}<br/>${chartConfig.value.valueColumn}: ${value}`
+      },
+    },
+    grid: {
+      left: 36,
+      right: 24,
+      top: 32,
+      bottom: 52,
+      containLabel: true,
+    },
+    xAxis: {
+      type: 'category',
+      data: chartConfig.value.categories,
+      axisLabel: {
+        interval: 0,
+        rotate: chartConfig.value.categories.length > 5 ? 20 : 0,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter(value) {
+          return isCurrencySeries
+            ? currencyFormatter.format(Number(value))
+            : Number(value).toLocaleString('pt-BR')
+        },
+      },
+    },
+    series: [
+      {
+        name: chartConfig.value.valueColumn,
+        type: 'bar',
+        barWidth: '52%',
+        data: chartConfig.value.seriesData,
+        itemStyle: {
+          borderRadius: [10, 10, 0, 0],
+        },
+      },
+    ],
+  })
+  chartInstance.resize()
+}
+
 async function validateSession() {
   try {
     const response = await getAuthenticatedUser()
@@ -101,6 +210,14 @@ function logout() {
 
 onMounted(() => {
   validateSession()
+})
+
+watch(chartConfig, () => {
+  renderChart()
+})
+
+onBeforeUnmount(() => {
+  disposeChart()
 })
 </script>
 
@@ -209,6 +326,15 @@ onMounted(() => {
               </table>
             </div>
             <p v-else class="result-caption">Nenhuma linha foi retornada para este preview.</p>
+          </article>
+
+          <article v-if="chartConfig" class="result-card result-card--wide">
+            <h2>Visualizacao grafica</h2>
+            <p class="result-caption">
+              Grafico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
+              <strong>{{ chartConfig.valueColumn }}</strong>.
+            </p>
+            <div ref="chartElement" class="chart-surface"></div>
           </article>
 
           <article v-if="isAdmin" class="result-card result-card--wide">
@@ -398,6 +524,14 @@ button:disabled {
   background: #eaf2fb;
   color: #0f2742;
   font-size: 0.9rem;
+}
+
+.chart-surface {
+  margin-top: 1rem;
+  width: 100%;
+  min-height: 360px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
 }
 
 .result-card--wide {
