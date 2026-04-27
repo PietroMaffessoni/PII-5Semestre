@@ -42,9 +42,13 @@ export function getAuthenticatedUser() {
   return request('/auth/me')
 }
 
-export function generateScript(question) {
+export function generateScript(question, options = {}) {
   return request('/scripts/generate', {
     method: 'POST',
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({
+      question,
+      execute: options.execute ?? true,
+      preview_limit: options.previewLimit ?? 20,
+    }),
   })
 }

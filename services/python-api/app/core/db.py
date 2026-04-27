@@ -1,3 +1,4 @@
+from pgvector.psycopg import register_vector
 from psycopg import connect
 from psycopg.rows import dict_row
 from urllib.request import Request, urlopen
@@ -9,9 +10,11 @@ def get_connection():
     settings = get_settings()
 
     if settings.database_url:
-        return connect(conninfo=settings.database_url, row_factory=dict_row)
+        connection = connect(conninfo=settings.database_url, row_factory=dict_row)
+        register_vector(connection)
+        return connection
 
-    return connect(
+    connection = connect(
         host=settings.db_host,
         port=settings.db_port,
         dbname=settings.db_name,
@@ -20,6 +23,8 @@ def get_connection():
         sslmode=settings.db_sslmode,
         row_factory=dict_row,
     )
+    register_vector(connection)
+    return connection
 
 
 def check_database_connection() -> dict[str, str | int]:

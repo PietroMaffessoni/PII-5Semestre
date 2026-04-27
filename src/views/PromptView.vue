@@ -14,6 +14,54 @@ const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
+const previewColumns = computed(() => {
+  if (!result.value?.preview_rows?.length) {
+    return []
+  }
+
+  return Object.keys(result.value.preview_rows[0])
+})
+const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+  style: 'currency',
+  currency: 'BRL',
+})
+const monthLabels = {
+  '01': 'Janeiro',
+  '02': 'Fevereiro',
+  '03': 'Março',
+  '04': 'Abril',
+  '05': 'Maio',
+  '06': 'Junho',
+  '07': 'Julho',
+  '08': 'Agosto',
+  '09': 'Setembro',
+  '10': 'Outubro',
+  '11': 'Novembro',
+  '12': 'Dezembro',
+}
+
+function formatPreviewValue(column, value) {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  if (column === 'mes') {
+    const match = String(value).match(/^(\d{4})-(\d{2})-/)
+    if (match) {
+      const [, , month] = match
+      return monthLabels[month] || value
+    }
+  }
+
+  if (column === 'valor_faturado') {
+    const numericValue = Number(value)
+    if (!Number.isNaN(numericValue)) {
+      return currencyFormatter.format(numericValue)
+    }
+  }
+
+  return value
+}
 
 async function validateSession() {
   try {
@@ -33,7 +81,10 @@ async function handleSubmit() {
   isLoading.value = true
 
   try {
-    result.value = await generateScript(prompt.value)
+    result.value = await generateScript(prompt.value, {
+      execute: true,
+      previewLimit: 20,
+    })
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -132,7 +183,31 @@ onMounted(() => {
           </article>
 
           <article class="result-card result-card--wide">
-            <h2>SQL inicial</h2>
+            <h2>Resultado da busca</h2>
+            <p v-if="result.preview_row_count" class="result-caption">
+              {{ result.preview_row_count }} linha(s) retornada(s) para validacao rapida.
+            </p>
+            <div v-if="result.preview_rows?.length" class="table-wrapper">
+              <table class="preview-table">
+                <thead>
+                  <tr>
+                    <th v-for="column in previewColumns" :key="column">{{ column }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, index) in result.preview_rows" :key="index">
+                    <td v-for="column in previewColumns" :key="column">
+                      {{ formatPreviewValue(column, row[column]) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="result-caption">Nenhuma linha foi retornada para este preview.</p>
+          </article>
+
+          <article class="result-card result-card--wide">
+            <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
         </section>
@@ -287,6 +362,37 @@ button:disabled {
   border-radius: 18px;
   background: #0f2742;
   color: #f8fbff;
+}
+
+.result-caption {
+  margin: 1rem 0 0;
+  color: #4f647a;
+}
+
+.table-wrapper {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #f8fbff;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.9rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(16, 36, 58, 0.08);
+}
+
+.preview-table th {
+  background: #eaf2fb;
+  color: #0f2742;
+  font-size: 0.9rem;
 }
 
 .result-card--wide {

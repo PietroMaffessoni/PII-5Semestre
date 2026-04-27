@@ -1,49 +1,45 @@
 # Plano Tecnico de Implementacao
 
+## Estado atual
+
+O projeto tem um MVP funcional no backend, banco e camada de IA:
+
+- autenticacao backend integrada ao fluxo principal;
+- interpretacao inicial da pergunta;
+- dicionario SAP ficticio estruturado;
+- geracao de SQL inicial por dominio de negocio;
+- persistencia do dicionario no Supabase/PostgreSQL;
+- embeddings gerados e gravados no banco vetorial;
+- retrieval semantico com `pgvector` conectado ao gerador de SQL;
+- fallback heuristico mantido como seguranca quando a busca vetorial falhar.
+
 ## Fase 1 - MVP Funcional
 
-Objetivo: entregar o fluxo autenticado `login -> prompt -> interpretacao -> identificacao de tabelas/campos -> SQL inicial`.
+Objetivo atual: consolidar e validar o fluxo autenticado `login -> prompt -> interpretacao -> retrieval -> identificacao de tabelas/campos -> SQL inicial`.
 
 ### Frontend
 
-- manter rota protegida para o prompt;
-- substituir a tela de resultado simples por uma resposta estruturada com:
-  - interpretacao da intencao;
-  - tabelas relevantes;
-  - campos relevantes;
-  - joins sugeridos;
-  - SQL gerado;
-  - recomendacao inicial de visual.
+- alterar a informacao de quando o usuario esta logado de "Logado como admin." para "Logado como pedro - admin.";
+- adicionar opcao de admin criar/excluir contas e gerenciar cargo dos usuarios.
 
 ### Backend
 
-- manter autenticacao baseada na tabela `usuarios`;
-- criar servico de interpretacao da pergunta do usuario;
-- criar servico de consulta ao dicionario SAP ficticio;
-- criar gerador de SQL com templates por dominio de negocio;
-- devolver uma resposta consolidada para o frontend.
+- validar o fluxo ponta a ponta com cenarios reais de negocio;
+- revisar logs e tratamento de erro para identificar quando o retrieval vetorial falha e quando o fallback e acionado.
 
 ### Banco
 
-- manter PostgreSQL/Supabase para autenticacao e persistencia principal;
-- preparar o projeto para `pgvector`, mas no MVP funcional usar o dicionario SAP ficticio local para acelerar a entrega;
-- definir script futuro para popular embeddings do dicionario em `pgvector`.
+- manter o seed vetorial reaplicavel sem perder embeddings validos;
+- validar estrutura, funcao de busca vetorial e consistencia dos dados carregados.
 
 ### IA
 
-- usar heuristicas + regras de negocio como primeira camada do MVP;
-- extrair:
-  - metrica;
-  - dimensoes;
-  - filtros;
-  - periodo;
-  - dominio de negocio;
-- sugerir visual com base na forma dos dados;
-- gerar SQL inicial coerente com o dicionario SAP ficticio.
+- calibrar ranking semantico, metricas e dimensoes para reduzir sugestoes irrelevantes;
+- revisar heuristicas de apoio para complementar o retrieval semantico.
 
 ## Fase 2 - MVP Visual
 
-Objetivo: mostrar a saida final ao usuario de forma visual.
+Objetivo: mostrar a saida final ao usuario com dados reais e validacao rapida.
 
 ### Frontend
 
@@ -59,14 +55,14 @@ Objetivo: mostrar a saida final ao usuario de forma visual.
 
 ### Banco
 
-- popular tabelas transacionais ficticias;
-- habilitar `pgvector` e armazenar embeddings do dicionario;
-- conectar retrieval semantico ao fluxo de geracao.
+- popular tabelas transacionais ficticias para execucao das consultas;
+- preparar consultas permitidas e visoes controladas para pre-visualizacao;
+- armazenar historico de execucoes.
 
 ### IA
 
-- trocar a busca puramente heuristica por retrieval com `pgvector`;
-- melhorar a geracao de SQL com contexto vetorial + regras de validacao.
+- melhorar a geracao de SQL com contexto vetorial + regras de validacao;
+- usar o resultado da busca vetorial para justificar melhor as tabelas e campos escolhidos.
 
 ## Fase 3 - Entrega Final
 
@@ -85,7 +81,6 @@ Objetivo: integrar o resultado com a experiencia final de visualizacao.
 
 ### Banco
 
-- consolidar `pgvector` como base vetorial oficial;
 - guardar historico, feedback e metricas de uso.
 
 ### IA
@@ -94,12 +89,11 @@ Objetivo: integrar o resultado com a experiencia final de visualizacao.
 - incluir explicacao da logica usada no SQL;
 - sugerir automaticamente o melhor tipo de grafico.
 
-## Ordem de execucao
+## Ordem de execucao restante
 
-1. Criar dicionario SAP ficticio estruturado.
-2. Implementar interpretacao da pergunta.
-3. Implementar identificacao de tabelas/campos.
-4. Implementar geracao de SQL inicial.
-5. Atualizar frontend para mostrar a resposta estruturada.
-6. Validar o MVP funcional.
-7. Popular dados ficticios e partir para a camada visual.
+1. Validar o MVP funcional com perguntas reais e ajustar ranking/regras onde houver erro.
+2. Popular tabelas transacionais ficticias no banco.
+3. Implementar execucao controlada do SQL gerado.
+4. Devolver linhas reais para o sistema.
+5. Armazenar historico das consultas e execucoes.
+6. Partir para a camada visual e pre-visualizacao.
