@@ -8,7 +8,7 @@ from app.core.db import get_connection
 
 def _find_user_with_postgres(usuario: str, senha: str) -> dict | None:
     query = """
-        SELECT id, usuario
+        SELECT id, usuario, role
         FROM usuarios
         WHERE usuario = %s
           AND senha = %s
@@ -25,7 +25,7 @@ def _find_user_with_supabase_rest(usuario: str, senha: str) -> dict | None:
     settings = get_settings()
     query = urlencode(
         {
-            "select": "id,usuario",
+            "select": "id,usuario,role",
             "usuario": f"eq.{usuario}",
             "senha": f"eq.{senha}",
             "limit": "1",

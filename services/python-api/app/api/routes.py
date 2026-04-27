@@ -28,6 +28,20 @@ class ScriptGenerationRequest(BaseModel):
     preview_limit: int = Field(default=20, ge=1, le=100, description="Limite maximo de linhas retornadas.")
 
 
+def filter_script_response_by_role(draft: dict, role: str | None) -> dict:
+    if role == "admin":
+        return draft
+
+    return {
+        "question": draft["question"],
+        "context": draft.get("context"),
+        "status": draft["status"],
+        "requested_by": draft.get("requested_by"),
+        "preview_rows": draft.get("preview_rows", []),
+        "preview_row_count": draft.get("preview_row_count", 0),
+    }
+
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> dict:
@@ -106,7 +120,7 @@ def generate_script(
         rows=preview_rows,
     )
 
-    return draft
+    return filter_script_response_by_role(draft, current_user.get("role"))
 
 
 @router.get("/scripts/history")

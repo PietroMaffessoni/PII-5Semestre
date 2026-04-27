@@ -14,6 +14,8 @@ const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
+const currentRole = computed(() => currentUser.value?.role || '')
+const isAdmin = computed(() => currentRole.value === 'admin')
 const previewColumns = computed(() => {
   if (!result.value?.preview_rows?.length) {
     return []
@@ -109,7 +111,10 @@ onMounted(() => {
         <div>
           <span class="eyebrow">Assistente autenticado</span>
           <h1>Escreva o prompt para gerar um SQL inicial.</h1>
-          <p>Logado como <strong>{{ welcomeLabel }}</strong>.</p>
+          <p>
+            Logado como <strong>{{ welcomeLabel }}</strong>
+            <template v-if="currentRole"> - <strong>{{ currentRole }}</strong></template>.
+          </p>
         </div>
 
         <button type="button" class="secondary-button" @click="logout">Sair</button>
@@ -139,7 +144,7 @@ onMounted(() => {
         </section>
 
         <section v-if="result" class="result-grid">
-          <article class="result-card">
+          <article v-if="isAdmin" class="result-card">
             <h2>Interpretacao da pergunta</h2>
             <ul>
               <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
@@ -150,21 +155,21 @@ onMounted(() => {
             </ul>
           </article>
 
-          <article class="result-card">
+          <article v-if="isAdmin" class="result-card">
             <h2>Tabelas sugeridas</h2>
             <ul>
               <li v-for="item in result.suggested_tables" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article class="result-card">
+          <article v-if="isAdmin" class="result-card">
             <h2>Filtros sugeridos</h2>
             <ul>
               <li v-for="item in result.suggested_filters" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article class="result-card result-card--wide">
+          <article v-if="isAdmin" class="result-card result-card--wide">
             <h2>Campos relevantes</h2>
             <div class="field-grid">
               <div v-for="item in result.relevant_fields" :key="`${item.table}-${item.field}`" class="field-chip">
@@ -175,7 +180,7 @@ onMounted(() => {
             </div>
           </article>
 
-          <article class="result-card result-card--wide">
+          <article v-if="isAdmin" class="result-card result-card--wide">
             <h2>Joins sugeridos</h2>
             <ul>
               <li v-for="item in result.join_suggestions" :key="item">{{ item }}</li>
@@ -206,7 +211,7 @@ onMounted(() => {
             <p v-else class="result-caption">Nenhuma linha foi retornada para este preview.</p>
           </article>
 
-          <article class="result-card result-card--wide">
+          <article v-if="isAdmin" class="result-card result-card--wide">
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
