@@ -83,7 +83,24 @@ npm run dev
 ```bash
 cd services/python-api
 python -m venv venv
-source venv/bin/activate
+source venv/bin/activate (Windows: .\venv\Scripts\Activate.ps1)
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
+
+Teste de conexao com o banco:
+
+```bash
+cd services/python-api
+source venv/bin/activate (Windows: .\venv\Scripts\Activate.ps1)
+python test_db_connection.py
+```
+
+### 3. Pipeline de IA
+
+```bash
+cd services/python-ai
+python -m venv .venv
+source .venv/bin/activate (Windows: .\.venv\Scripts\Activate.ps1)
+pip install -r requirements.txt
 ```
