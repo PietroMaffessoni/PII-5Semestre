@@ -326,7 +326,7 @@ async function renderChart() {
   chartInstance.setOption({
     animationDuration: 500,
     backgroundColor: '#ffffff',
-    color: ['#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
+    color: ['#5cb3a1', '#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
     legend: {
       show: isGroupedSeries || !isLine,
       bottom: 0,
@@ -721,7 +721,7 @@ onBeforeUnmount(() => {
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 
-          <article v-if="isAdmin && result.draft_script" class="result-card result-card--wide">
+          <article v-if="isAdmin && result.draft_script" class="result-card result-card--wide result-card--sql">
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
@@ -955,7 +955,7 @@ button {
 }
 
 .actions button {
-  background: #0f2742;
+  background: #5cb3a1;
   color: white;
 }
 
@@ -1091,6 +1091,11 @@ button:disabled {
   padding: 0.5rem;
   border: 1px solid rgba(16, 36, 58, 0.08);
   background: #ffffff;
+}
+
+.result-card--sql pre {
+  background: #f7d3a2;
+  color: #24313a;
 }
 
 .result-card--wide {
