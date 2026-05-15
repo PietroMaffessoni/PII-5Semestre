@@ -47,12 +47,12 @@ onMounted(() => {
   <main class="login-layout">
     <section class="login-panel">
       <div class="brand-block">
-        <span class="eyebrow">Geracao de SQL para Power BI</span>
-        <h1>Entre com uma conta valida para acessar o assistente.</h1>
+        <span class="eyebrow">ASSISTENTE INTELIGENTE DE DADOS</span>
+        <h1>Seus dados transformados em dashboards, em segundos.</h1>
         <p>
-          O acesso ao prompt e liberado apenas para usuarios autenticados na base PostgreSQL.
+          Faça login para acessar a IA. Digite o que você precisa analisar em texto simples e o assistente gera os gráficos visuais para você no Power BI.
         </p>
-        <p class="supabase-status">{{ supabaseStatus }}</p>
+        <p class="supabase-status">Termos de Uso e Política de Privacidade.</p>
       </div>
 
       <form class="login-form" @submit.prevent="handleSubmit">
@@ -103,17 +103,18 @@ onMounted(() => {
 
 .brand-block {
   padding: 2rem;
-  background: linear-gradient(135deg, #0f2742 0%, #1e5d8f 100%);
+  background: linear-gradient(135deg, #e09144 0%, #5cb3a1 100%);
   color: #f7fafc;
 }
 
 .eyebrow {
   display: inline-block;
   margin-bottom: 1rem;
-  color: #bfd5ea;
+  color: rgba(255, 255, 255, 0.98);
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
 .brand-block h1 {
@@ -125,7 +126,7 @@ onMounted(() => {
 .brand-block p {
   margin: 1rem 0 0;
   max-width: 34rem;
-  color: rgba(247, 250, 252, 0.82);
+  color: rgba(247, 250, 252, 0.92);
   line-height: 1.7;
 }
 
@@ -134,7 +135,7 @@ onMounted(() => {
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
-  color: #d9ebfb;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .login-form {
@@ -163,8 +164,8 @@ onMounted(() => {
   border: 0;
   border-radius: 14px;
   padding: 0.95rem 1rem;
-  background: #f5b700;
-  color: #0f2742;
+  background: #5cb3a1;
+  color: #ffffff;
   font-weight: 800;
   cursor: pointer;
 }
