@@ -122,7 +122,7 @@ async function renderChart() {
   const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
   chartInstance.setOption({
     animationDuration: 500,
-    color: ['#1e5d8f'],
+    color: ['#5cb3a1'],
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -337,7 +337,7 @@ onBeforeUnmount(() => {
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 
-          <article v-if="isAdmin" class="result-card result-card--wide">
+          <article v-if="isAdmin" class="result-card result-card--wide result-card--sql">
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
@@ -434,7 +434,7 @@ button {
 }
 
 .actions button {
-  background: #0f2742;
+  background: #5cb3a1;
   color: white;
 }
 
@@ -532,6 +532,11 @@ button:disabled {
   min-height: 360px;
   border-radius: 18px;
   background: linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
+}
+
+.result-card--sql pre {
+  background: #f7d3a2;
+  color: #24313a;
 }
 
 .result-card--wide {
