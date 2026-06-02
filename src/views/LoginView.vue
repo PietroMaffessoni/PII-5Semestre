@@ -94,7 +94,7 @@ onMounted(() => {
   width: min(980px, 100%);
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-  background: rgba(255, 255, 255, 0.88);
+  background: #ffffff;
   border: 1px solid rgba(16, 36, 58, 0.08);
   border-radius: 28px;
   overflow: hidden;
@@ -103,14 +103,14 @@ onMounted(() => {
 
 .brand-block {
   padding: 2rem;
-  background: linear-gradient(135deg, #0f2742 0%, #1e5d8f 100%);
-  color: #f7fafc;
+  background: #ffffff;
+  color: #10243a;
 }
 
 .eyebrow {
   display: inline-block;
   margin-bottom: 1rem;
-  color: #bfd5ea;
+  color: #5f7791;
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -125,7 +125,7 @@ onMounted(() => {
 .brand-block p {
   margin: 1rem 0 0;
   max-width: 34rem;
-  color: rgba(247, 250, 252, 0.82);
+  color: #4f6478;
   line-height: 1.7;
 }
 
@@ -133,8 +133,8 @@ onMounted(() => {
   margin-top: 1.25rem;
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #d9ebfb;
+  background: #f5f7fa;
+  color: #35516d;
 }
 
 .login-form {
