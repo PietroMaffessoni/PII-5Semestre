@@ -1,10 +1,26 @@
 import { createClient } from '@supabase/supabase-js'
 
+const useMockApi = import.meta.env.VITE_USE_MOCK_API === 'true'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('As variaveis VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY não estão definidas.')
+function createMockSupabaseClient() {
+  return {
+    auth: {
+      async getSession() {
+        return {
+          data: { session: null },
+          error: null,
+        }
+      },
+    },
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+if (!useMockApi && (!supabaseUrl || !supabaseKey)) {
+  throw new Error('As variaveis VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY nao estao definidas.')
+}
+
+export const supabase = useMockApi
+  ? createMockSupabaseClient()
+  : createClient(supabaseUrl, supabaseKey)
