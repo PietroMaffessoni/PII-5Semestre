@@ -19,6 +19,7 @@ const isLoadingHistory = ref(false)
 const selectedHistoryId = ref(null)
 const historyCollapsed = ref(false)
 const selectedMonths = ref([])
+const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
@@ -290,6 +291,14 @@ async function renderChart() {
   const isLine = chartType === 'line'
   const isHorizontalBar = chartType === 'horizontal_bar'
   const isGroupedSeries = Boolean(chartConfig.value.series_column)
+  const isDarkTheme = theme.value === 'dark'
+  const chartTextColor = isDarkTheme ? '#f6fbff' : '#10243a'
+  const chartMutedColor = isDarkTheme ? '#c4d0dc' : '#4f647a'
+  const chartGridColor = isDarkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(35, 65, 95, 0.18)'
+  const chartAxisColor = isDarkTheme ? 'rgba(255, 255, 255, 0.2)' : 'rgba(35, 65, 95, 0.22)'
+  const chartTooltipBg = isDarkTheme ? 'rgba(11, 22, 33, 0.96)' : 'rgba(255, 255, 255, 0.98)'
+  const chartTooltipBorder = isDarkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(35, 65, 95, 0.14)'
+  const chartBackground = isDarkTheme ? 'transparent' : '#ffffff'
   const series = (chartConfig.value.series || []).map((item, index) => ({
     name: item.name,
     type: seriesType,
@@ -313,7 +322,7 @@ async function renderChart() {
       ? {
           show: true,
           position: isHorizontalBar ? 'right' : 'top',
-          color: '#23415f',
+          color: chartTextColor,
           fontWeight: 700,
           formatter(params) {
             return formatMetricLabel(params.value, isCurrencySeries)
@@ -325,26 +334,28 @@ async function renderChart() {
 
   chartInstance.setOption({
     animationDuration: 500,
-    backgroundColor: '#ffffff',
-    color: ['#5cb3a1', '#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
+    backgroundColor: chartBackground,
+    color: isDarkTheme
+      ? ['#7c3aed', '#38bdf8', '#f59e0b', '#cbd5e1', '#14b8a6', '#f472b6']
+      : ['#5cb3a1', '#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
     legend: {
       show: isGroupedSeries || !isLine,
       bottom: 0,
       left: 'center',
       itemWidth: 14,
       textStyle: {
-        color: '#4f647a',
+        color: chartMutedColor,
         fontWeight: 500,
       },
     },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: isLine ? 'line' : 'shadow' },
-      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-      borderColor: 'rgba(35, 65, 95, 0.14)',
+      backgroundColor: chartTooltipBg,
+      borderColor: chartTooltipBorder,
       borderWidth: 1,
       textStyle: {
-        color: '#0f2742',
+        color: chartTextColor,
       },
       formatter(params) {
         const lines = [`<strong>${params[0].axisValue}</strong>`]
@@ -371,7 +382,7 @@ async function renderChart() {
           splitNumber: 5,
           splitLine: {
             lineStyle: {
-              color: 'rgba(35, 65, 95, 0.12)',
+              color: chartGridColor,
             },
           },
           axisLine: {
@@ -381,7 +392,7 @@ async function renderChart() {
             show: false,
           },
           axisLabel: {
-            color: '#4f647a',
+            color: chartMutedColor,
             formatter(value) {
               return formatAxisMetric(value, isCurrencySeries)
             },
@@ -396,13 +407,13 @@ async function renderChart() {
           },
           axisLine: {
             lineStyle: {
-              color: 'rgba(35, 65, 95, 0.22)',
+              color: chartAxisColor,
             },
           },
           axisLabel: {
             interval: 0,
             rotate: chartConfig.value.labels.length > 6 ? 16 : 0,
-            color: '#4f647a',
+            color: chartMutedColor,
             fontWeight: 500,
             margin: 14,
           },
@@ -418,7 +429,7 @@ async function renderChart() {
             show: false,
           },
           axisLabel: {
-            color: '#4f647a',
+            color: chartMutedColor,
             fontWeight: 600,
           },
         }
@@ -427,7 +438,7 @@ async function renderChart() {
           splitNumber: 6,
           splitLine: {
             lineStyle: {
-              color: 'rgba(35, 65, 95, 0.18)',
+              color: chartGridColor,
             },
           },
           axisLine: {
@@ -437,7 +448,7 @@ async function renderChart() {
             show: false,
           },
           axisLabel: {
-            color: '#4f647a',
+            color: chartMutedColor,
             fontWeight: 500,
             formatter(value) {
               return formatAxisMetric(value, isCurrencySeries)
@@ -445,7 +456,7 @@ async function renderChart() {
           },
         },
     series,
-  })
+  }, true)
   chartInstance.resize()
 }
 
@@ -499,7 +510,13 @@ function logout() {
   router.push({ name: 'login' })
 }
 
+function handleThemeChange(event) {
+  theme.value = event.detail?.theme || document.documentElement.dataset.theme || 'light'
+  renderChart()
+}
+
 onMounted(() => {
+  window.addEventListener('themechange', handleThemeChange)
   validateSession()
 })
 
@@ -521,6 +538,7 @@ watch(chartConfig, () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('themechange', handleThemeChange)
   disposeChart()
 })
 </script>
@@ -764,10 +782,14 @@ onBeforeUnmount(() => {
 .input-card,
 .result-card,
 .status-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 24px;
-  box-shadow: 0 18px 50px rgba(16, 36, 58, 0.08);
+  box-shadow: var(--panel-shadow);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
 .history-panel {
@@ -901,7 +923,7 @@ onBeforeUnmount(() => {
 
 .eyebrow {
   display: inline-block;
-  color: #1e5d8f;
+  color: var(--accent-primary);
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -914,7 +936,7 @@ onBeforeUnmount(() => {
 
 .topbar p {
   margin: 0.75rem 0 0;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .input-card,
@@ -936,9 +958,10 @@ onBeforeUnmount(() => {
   width: 100%;
   resize: vertical;
   padding: 1rem;
-  border: 1px solid rgba(35, 65, 95, 0.18);
+  border: 1px solid var(--input-border);
   border-radius: 18px;
-  background: #f8fbff;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .actions,
@@ -947,21 +970,28 @@ onBeforeUnmount(() => {
 }
 
 button {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 14px;
   padding: 0.85rem 1.1rem;
   font-weight: 800;
   cursor: pointer;
+  backdrop-filter: blur(16px) saturate(1.18);
 }
 
 .actions button {
-  background: #5cb3a1;
-  color: white;
+  background:
+    var(--button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--button-text);
+  box-shadow: var(--button-shadow);
 }
 
 .secondary-button {
-  background: #edf3f9;
-  color: #0f2742;
+  background:
+    var(--secondary-button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--secondary-button-text);
+  box-shadow: var(--button-shadow);
 }
 
 button:disabled {
@@ -983,7 +1013,7 @@ button:disabled {
 .result-card ul {
   margin: 1rem 0 0;
   padding-left: 1.1rem;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .field-grid {
@@ -998,13 +1028,13 @@ button:disabled {
   gap: 0.25rem;
   padding: 0.9rem;
   border-radius: 16px;
-  background: #f5f8fc;
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: var(--surface-bg);
+  border: 1px solid var(--panel-border);
 }
 
 .field-chip span,
 .field-chip small {
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .result-card pre {
@@ -1018,7 +1048,7 @@ button:disabled {
 
 .result-caption {
   margin: 1rem 0 0;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .month-filter {
@@ -1067,20 +1097,24 @@ button:disabled {
   border-collapse: collapse;
   border-radius: 18px;
   overflow: hidden;
-  background: #f8fbff;
+  background: var(--surface-bg);
 }
 
 .preview-table th,
 .preview-table td {
   padding: 0.9rem 1rem;
   text-align: left;
-  border-bottom: 1px solid rgba(16, 36, 58, 0.08);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .preview-table th {
-  background: #eaf2fb;
-  color: #0f2742;
+  background: var(--surface-strong);
+  color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.preview-table td {
+  color: var(--text-primary);
 }
 
 .chart-surface {
@@ -1089,13 +1123,13 @@ button:disabled {
   min-height: 360px;
   border-radius: 18px;
   padding: 0.5rem;
-  border: 1px solid rgba(16, 36, 58, 0.08);
-  background: #ffffff;
+  border: 1px solid var(--panel-border);
+  background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
 }
 
 .result-card--sql pre {
-  background: #f7d3a2;
-  color: #24313a;
+  background: var(--sql-bg);
+  color: var(--sql-text);
 }
 
 .result-card--wide {

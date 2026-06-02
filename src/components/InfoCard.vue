@@ -30,22 +30,22 @@ defineProps({
   display: grid;
   gap: 0.9rem;
   padding: 1.4rem;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(7, 34, 66, 0.12);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 20px;
-  box-shadow: 0 18px 40px rgba(7, 34, 66, 0.08);
+  box-shadow: var(--panel-shadow);
 }
 
 h2 {
   margin: 0;
-  color: #0f2742;
+  color: var(--text-primary);
   font-size: 1.12rem;
 }
 
 p,
 li {
   margin: 0;
-  color: #35506d;
+  color: var(--text-secondary);
   line-height: 1.55;
 }
 
