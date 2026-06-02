@@ -94,16 +94,20 @@ onMounted(() => {
   width: min(980px, 100%);
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 28px;
   overflow: hidden;
-  box-shadow: 0 24px 80px rgba(16, 36, 58, 0.12);
+  box-shadow: var(--panel-shadow);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
 .brand-block {
   padding: 2rem;
-  background: linear-gradient(135deg, #e09144 0%, #5cb3a1 100%);
+  background: var(--brand-gradient);
   color: #f7fafc;
 }
 
@@ -134,7 +138,7 @@ onMounted(() => {
   margin-top: 1.25rem;
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--brand-soft);
   color: rgba(255, 255, 255, 0.92);
 }
 
@@ -148,26 +152,31 @@ onMounted(() => {
 .login-form label {
   display: grid;
   gap: 0.45rem;
-  color: #23415f;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
 .login-form input {
   width: 100%;
   padding: 0.95rem 1rem;
-  border: 1px solid rgba(35, 65, 95, 0.18);
+  border: 1px solid var(--input-border);
   border-radius: 14px;
-  background: #f8fbff;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .login-form button {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 14px;
   padding: 0.95rem 1rem;
-  background: #5cb3a1;
-  color: #ffffff;
+  background:
+    var(--button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--button-text);
+  box-shadow: var(--button-shadow);
   font-weight: 800;
   cursor: pointer;
+  backdrop-filter: blur(16px) saturate(1.18);
 }
 
 .login-form button:disabled {

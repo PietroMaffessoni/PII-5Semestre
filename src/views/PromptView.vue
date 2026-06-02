@@ -14,6 +14,7 @@ const isLoading = ref(false)
 const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
+const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
@@ -120,12 +121,21 @@ async function renderChart() {
   }
 
   const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
+  const isDarkTheme = theme.value === 'dark'
+  const chartTextColor = isDarkTheme ? '#f6fbff' : '#10243a'
+  const chartMutedColor = isDarkTheme ? '#c4d0dc' : '#4f647a'
+  const chartGridColor = isDarkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(16, 36, 58, 0.1)'
+  const chartTooltipBg = isDarkTheme ? 'rgba(11, 22, 33, 0.96)' : 'rgba(255, 255, 255, 0.96)'
+  const chartTooltipBorder = isDarkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(16, 36, 58, 0.12)'
   chartInstance.setOption({
     animationDuration: 500,
-    color: ['#5cb3a1'],
+    color: [isDarkTheme ? '#4b1c73' : '#5cb3a1'],
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
+      backgroundColor: chartTooltipBg,
+      borderColor: chartTooltipBorder,
+      textStyle: { color: chartTextColor },
       formatter(params) {
         const item = params[0]
         const value = isCurrencySeries
@@ -144,14 +154,20 @@ async function renderChart() {
     xAxis: {
       type: 'category',
       data: chartConfig.value.categories,
+      axisLine: { lineStyle: { color: chartGridColor } },
+      axisTick: { lineStyle: { color: chartGridColor } },
       axisLabel: {
+        color: chartMutedColor,
         interval: 0,
         rotate: chartConfig.value.categories.length > 5 ? 20 : 0,
       },
     },
     yAxis: {
       type: 'value',
+      axisLine: { lineStyle: { color: chartGridColor } },
+      splitLine: { lineStyle: { color: chartGridColor } },
       axisLabel: {
+        color: chartMutedColor,
         formatter(value) {
           return isCurrencySeries
             ? currencyFormatter.format(Number(value))
@@ -167,10 +183,11 @@ async function renderChart() {
         data: chartConfig.value.seriesData,
         itemStyle: {
           borderRadius: [10, 10, 0, 0],
+          color: isDarkTheme ? '#4b1c73' : '#5cb3a1',
         },
       },
     ],
-  })
+  }, true)
   chartInstance.resize()
 }
 
@@ -208,7 +225,13 @@ function logout() {
   router.push({ name: 'login' })
 }
 
+function handleThemeChange(event) {
+  theme.value = event.detail?.theme || document.documentElement.dataset.theme || 'light'
+  renderChart()
+}
+
 onMounted(() => {
+  window.addEventListener('themechange', handleThemeChange)
   validateSession()
 })
 
@@ -217,6 +240,7 @@ watch(chartConfig, () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('themechange', handleThemeChange)
   disposeChart()
 })
 </script>
@@ -364,10 +388,14 @@ onBeforeUnmount(() => {
 .input-card,
 .result-card,
 .status-card {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
   border-radius: 24px;
-  box-shadow: 0 18px 50px rgba(16, 36, 58, 0.08);
+  box-shadow: var(--panel-shadow);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease;
 }
 
 .topbar {
@@ -380,7 +408,7 @@ onBeforeUnmount(() => {
 
 .eyebrow {
   display: inline-block;
-  color: #1e5d8f;
+  color: var(--accent-primary);
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -393,7 +421,7 @@ onBeforeUnmount(() => {
 
 .topbar p {
   margin: 0.75rem 0 0;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .input-card,
@@ -415,9 +443,10 @@ onBeforeUnmount(() => {
   width: 100%;
   resize: vertical;
   padding: 1rem;
-  border: 1px solid rgba(35, 65, 95, 0.18);
+  border: 1px solid var(--input-border);
   border-radius: 18px;
-  background: #f8fbff;
+  background: var(--input-bg);
+  color: var(--text-primary);
 }
 
 .actions,
@@ -426,21 +455,28 @@ onBeforeUnmount(() => {
 }
 
 button {
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 14px;
   padding: 0.85rem 1.1rem;
   font-weight: 800;
   cursor: pointer;
+  backdrop-filter: blur(16px) saturate(1.18);
 }
 
 .actions button {
-  background: #5cb3a1;
-  color: white;
+  background:
+    var(--button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--button-text);
+  box-shadow: var(--button-shadow);
 }
 
 .secondary-button {
-  background: #edf3f9;
-  color: #0f2742;
+  background:
+    var(--secondary-button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--secondary-button-text);
+  box-shadow: var(--button-shadow);
 }
 
 button:disabled {
@@ -462,7 +498,7 @@ button:disabled {
 .result-card ul {
   margin: 1rem 0 0;
   padding-left: 1.1rem;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .field-grid {
@@ -477,13 +513,13 @@ button:disabled {
   gap: 0.25rem;
   padding: 0.9rem;
   border-radius: 16px;
-  background: #f5f8fc;
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: var(--surface-bg);
+  border: 1px solid var(--panel-border);
 }
 
 .field-chip span,
 .field-chip small {
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .result-card pre {
@@ -497,7 +533,7 @@ button:disabled {
 
 .result-caption {
   margin: 1rem 0 0;
-  color: #4f647a;
+  color: var(--text-secondary);
 }
 
 .table-wrapper {
@@ -510,20 +546,24 @@ button:disabled {
   border-collapse: collapse;
   border-radius: 18px;
   overflow: hidden;
-  background: #f8fbff;
+  background: var(--surface-bg);
 }
 
 .preview-table th,
 .preview-table td {
   padding: 0.9rem 1rem;
   text-align: left;
-  border-bottom: 1px solid rgba(16, 36, 58, 0.08);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .preview-table th {
-  background: #eaf2fb;
-  color: #0f2742;
+  background: var(--surface-strong);
+  color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.preview-table td {
+  color: var(--text-primary);
 }
 
 .chart-surface {
@@ -531,12 +571,12 @@ button:disabled {
   width: 100%;
   min-height: 360px;
   border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
+  background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
 }
 
 .result-card--sql pre {
-  background: #f7d3a2;
-  color: #24313a;
+  background: var(--sql-bg);
+  color: var(--sql-text);
 }
 
 .result-card--wide {
