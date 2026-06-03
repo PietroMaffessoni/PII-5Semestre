@@ -48,9 +48,10 @@ onMounted(() => {
     <section class="login-panel">
       <div class="brand-block">
         <span class="eyebrow">Geracao de SQL para Power BI</span>
-        <h1>Entre com uma conta valida para acessar o assistente.</h1>
+        <h1>Entre com uma conta valida para continuar.</h1>
         <p>
-          O acesso ao prompt e liberado apenas para usuarios autenticados na base PostgreSQL.
+          Acesse o ambiente com suas credenciais para gerar consultas SQL iniciais e revisar os
+          resultados antes de levar a analise para o Power BI.
         </p>
         <p class="supabase-status">{{ supabaseStatus }}</p>
       </div>
@@ -87,7 +88,10 @@ onMounted(() => {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  padding: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  background:
+    radial-gradient(circle at top, rgba(245, 183, 0, 0.1), transparent 30%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
 }
 
 .login-panel {
@@ -102,7 +106,7 @@ onMounted(() => {
 }
 
 .brand-block {
-  padding: 2rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
   background: #ffffff;
   color: #10243a;
 }
@@ -140,7 +144,7 @@ onMounted(() => {
 .login-form {
   display: grid;
   gap: 1rem;
-  padding: 2rem;
+  padding: clamp(1.5rem, 4vw, 3rem);
   align-content: center;
 }
 
@@ -183,6 +187,33 @@ onMounted(() => {
 @media (max-width: 860px) {
   .login-panel {
     grid-template-columns: 1fr;
+  }
+
+  .login-form {
+    border-top: 1px solid rgba(16, 36, 58, 0.08);
+  }
+}
+
+@media (max-width: 560px) {
+  .login-layout {
+    place-items: stretch;
+    padding: 0.75rem;
+  }
+
+  .login-panel {
+    border-radius: 22px;
+  }
+
+  .brand-block h1 {
+    font-size: 1.85rem;
+  }
+
+  .brand-block p {
+    line-height: 1.6;
+  }
+
+  .login-form button {
+    width: 100%;
   }
 }
 </style>

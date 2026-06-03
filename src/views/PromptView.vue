@@ -107,6 +107,10 @@ function disposeChart() {
   }
 }
 
+function handleWindowResize() {
+  chartInstance?.resize()
+}
+
 async function renderChart() {
   await nextTick()
 
@@ -210,6 +214,7 @@ function logout() {
 
 onMounted(() => {
   validateSession()
+  window.addEventListener('resize', handleWindowResize)
 })
 
 watch(chartConfig, () => {
@@ -217,6 +222,7 @@ watch(chartConfig, () => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleWindowResize)
   disposeChart()
 })
 </script>
@@ -350,7 +356,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .prompt-layout {
   min-height: 100vh;
-  padding: 1.25rem;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+  background:
+    radial-gradient(circle at top right, rgba(30, 93, 143, 0.08), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #f1f6fb 100%);
 }
 
 .prompt-shell {
@@ -375,7 +384,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
-  padding: 1.5rem;
+  padding: clamp(1.1rem, 3vw, 1.5rem);
 }
 
 .eyebrow {
@@ -399,7 +408,7 @@ onBeforeUnmount(() => {
 .input-card,
 .status-card,
 .result-card {
-  padding: 1.5rem;
+  padding: clamp(1rem, 3vw, 1.5rem);
 }
 
 .input-card {
@@ -413,6 +422,7 @@ onBeforeUnmount(() => {
 
 .input-card textarea {
   width: 100%;
+  min-height: 10rem;
   resize: vertical;
   padding: 1rem;
   border: 1px solid rgba(35, 65, 95, 0.18);
@@ -423,6 +433,10 @@ onBeforeUnmount(() => {
 .actions,
 .topbar {
   display: flex;
+}
+
+.actions {
+  justify-content: flex-start;
 }
 
 button {
@@ -490,6 +504,8 @@ button:disabled {
   margin: 1rem 0 0;
   padding: 1rem;
   overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
   border-radius: 18px;
   background: #0f2742;
   color: #f8fbff;
@@ -507,6 +523,7 @@ button:disabled {
 
 .preview-table {
   width: 100%;
+  min-width: 640px;
   border-collapse: collapse;
   border-radius: 18px;
   overflow: hidden;
@@ -539,10 +556,59 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
-  .topbar,
-  .result-grid {
+  .topbar {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .secondary-button,
+  .actions button {
+    width: 100%;
+  }
+
+  .chart-surface {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 560px) {
+  .prompt-layout {
+    padding: 0.5rem;
+  }
+
+  .topbar,
+  .input-card,
+  .result-card,
+  .status-card {
+    border-radius: 20px;
+  }
+
+  .topbar h1 {
+    font-size: 1.7rem;
+    line-height: 1.15;
+  }
+
+  .input-card textarea,
+  .preview-table th,
+  .preview-table td,
+  .result-card pre {
+    font-size: 0.95rem;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-table {
+    min-width: 560px;
+  }
+
+  .chart-surface {
+    min-height: 260px;
   }
 }
 </style>
