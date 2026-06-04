@@ -11,7 +11,9 @@
     "format": "prettier --write --experimental-cli src/",
     "cap:sync": "npx cap sync",
     "cap:sync:android": "npm run build:android && npx cap sync android",
+    "cap:sync:ios": "vite build --mode ios && npx cap sync ios",
     "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "cap:run:android": "npx cap run android"
   },
   "dependencies": {
