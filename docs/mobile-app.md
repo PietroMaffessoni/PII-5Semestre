@@ -10,6 +10,27 @@ ser empacotado como aplicativo Android com Capacitor.
 3. Sincronizar o build com o projeto mobile usando `npm.cmd run cap:sync:android`.
 4. Abrir o projeto nativo com `npm.cmd run cap:open:android`.
 
+## iOS
+
+O frontend ja esta preparado para iOS tambem, mas a parte nativa do iPhone
+precisa ser criada em um Mac com Xcode.
+
+Arquivos de apoio:
+
+- `.env.ios.example` para variaveis de ambiente do build iOS
+- `npm.cmd run cap:sync:ios` para sincronizar o build quando o projeto estiver em um Mac
+- `npm.cmd run cap:open:ios` para abrir no Xcode em um Mac
+
+Passos no Mac:
+
+1. Instalar Xcode.
+2. Rodar `npm install`.
+3. Rodar `npx cap add ios`.
+4. Ajustar as variaveis com base em `.env.ios.example`.
+5. Rodar `npm run cap:sync:ios`.
+6. Rodar `npm run cap:open:ios`.
+7. No Xcode, escolher simulador ou iPhone e clicar em Run.
+
 ## URLs da API
 
 - No navegador local, `localhost` funciona normalmente.
