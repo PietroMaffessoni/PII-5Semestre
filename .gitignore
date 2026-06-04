@@ -4,6 +4,7 @@ dist-ssr/
 .DS_Store
 *.log
 .env
+.env.android
 .vscode/*
 !.vscode/extensions.json
 __pycache__/
