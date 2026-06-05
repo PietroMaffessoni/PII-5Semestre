@@ -149,22 +149,10 @@ def _choose_chart_type(
     series_payload: list[dict],
 ) -> str:
     if category_column == "mes" and series_column:
-        total_slots = len(labels) * len(series_payload)
-        populated_slots = sum(
-            1
-            for series_item in series_payload
-            for point in series_item["data"]
-            if point is not None
-        )
-        sparsity_ratio = populated_slots / total_slots if total_slots else 0
-
-        if len(labels) <= 4 or sparsity_ratio < 0.75:
-            return "grouped_bar"
-
-        return "line"
+        return "grouped_bar"
 
     if category_column == "mes":
-        return "line"
+        return "bar" if len(labels) <= 6 else "line"
 
     max_label_length = max((len(label) for label in labels), default=0)
     has_many_categories = len(labels) >= 7
@@ -329,25 +317,46 @@ def save_query_history(
         connection.commit()
 
 
-def list_query_history(limit: int = 20) -> list[dict]:
-    query = """
-        SELECT
-            id,
-            user_id,
-            requested_by,
-            question,
-            generated_sql,
-            retrieval_mode,
-            execution_status,
-            row_count,
-            result_preview,
-            created_at
-        FROM script_query_history
-        ORDER BY created_at DESC
-        LIMIT %s
-    """
+def list_query_history(limit: int = 20, requested_by: str | None = None) -> list[dict]:
+    if requested_by:
+        query = """
+            SELECT
+                id,
+                user_id,
+                requested_by,
+                question,
+                generated_sql,
+                retrieval_mode,
+                execution_status,
+                row_count,
+                result_preview,
+                created_at
+            FROM script_query_history
+            WHERE requested_by = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+        """
+        params = (requested_by, limit)
+    else:
+        query = """
+            SELECT
+                id,
+                user_id,
+                requested_by,
+                question,
+                generated_sql,
+                retrieval_mode,
+                execution_status,
+                row_count,
+                result_preview,
+                created_at
+            FROM script_query_history
+            ORDER BY created_at DESC
+            LIMIT %s
+        """
+        params = (limit,)
 
     with get_connection() as connection:
         with connection.cursor() as cursor:
-            cursor.execute(query, (limit,))
+            cursor.execute(query, params)
             return [dict(row) for row in cursor.fetchall()]

@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 
-import { generateScript, getAuthenticatedUser } from '../services/api'
+import { generateScript, getAuthenticatedUser, getScriptHistory } from '../services/api'
 import { clearAuthSession, getCurrentUser } from '../services/auth'
 
 const router = useRouter()
@@ -14,11 +14,16 @@ const isLoading = ref(false)
 const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
+const historyItems = ref([])
+const isLoadingHistory = ref(false)
+const selectedHistoryId = ref(null)
+const historyCollapsed = ref(false)
 let chartInstance = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
 const isAdmin = computed(() => currentRole.value === 'admin')
+const canViewAllHistory = computed(() => ['admin', 'gerente'].includes(currentRole.value))
 const hasUsableInterpretation = computed(() => Boolean(result.value?.is_understood))
 const previewColumns = computed(() => {
   if (!result.value?.preview_rows?.length) {
@@ -98,6 +103,44 @@ function disposeChart() {
   }
 }
 
+function formatHistoryDate(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+async function loadHistory() {
+  isLoadingHistory.value = true
+
+  try {
+    const response = await getScriptHistory({ limit: 30 })
+    historyItems.value = response.items || []
+  } catch {
+    historyItems.value = []
+  } finally {
+    isLoadingHistory.value = false
+  }
+}
+
+function selectHistoryItem(item) {
+  selectedHistoryId.value = item.id
+  prompt.value = item.question
+}
+
+function toggleHistory() {
+  historyCollapsed.value = !historyCollapsed.value
+}
+
 function formatAxisMetric(value, isCurrencySeries) {
   const numericValue = Number(value)
   if (Number.isNaN(numericValue)) {
@@ -149,20 +192,20 @@ async function renderChart() {
     type: seriesType,
     smooth: isLine,
     connectNulls: false,
-    barMaxWidth: isHorizontalBar ? 28 : 44,
+    barMaxWidth: isHorizontalBar ? 26 : 34,
     data: item.data,
-    symbolSize: isLine ? 10 : 0,
+    symbolSize: isLine ? 8 : 0,
     showSymbol: isLine,
     emphasis: {
       focus: isGroupedSeries ? 'series' : 'self',
     },
     lineStyle: {
-      width: 4,
+      width: 3,
     },
     itemStyle: {
-      borderRadius: isLine ? 8 : (isHorizontalBar ? [0, 10, 10, 0] : [10, 10, 0, 0]),
+      borderRadius: isLine ? 6 : (isHorizontalBar ? [0, 4, 4, 0] : [4, 4, 0, 0]),
     },
-    areaStyle: !isGroupedSeries && isLine ? { opacity: 0.08 } : undefined,
+    areaStyle: undefined,
     label: !isGroupedSeries && !isLine
       ? {
           show: true,
@@ -179,24 +222,26 @@ async function renderChart() {
 
   chartInstance.setOption({
     animationDuration: 500,
-    color: ['#1e5d8f', '#0f8b8d', '#f4a261', '#e76f51', '#6c8ebf', '#8ab17d'],
+    backgroundColor: '#ffffff',
+    color: ['#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
     legend: {
-      show: isGroupedSeries,
-      top: 0,
+      show: isGroupedSeries || !isLine,
+      bottom: 0,
       left: 'center',
       itemWidth: 14,
       textStyle: {
-        color: '#23415f',
-        fontWeight: 600,
+        color: '#4f647a',
+        fontWeight: 500,
       },
     },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: isLine ? 'line' : 'shadow' },
-      backgroundColor: 'rgba(15, 39, 66, 0.95)',
-      borderWidth: 0,
+      backgroundColor: 'rgba(255, 255, 255, 0.98)',
+      borderColor: 'rgba(35, 65, 95, 0.14)',
+      borderWidth: 1,
       textStyle: {
-        color: '#f8fbff',
+        color: '#0f2742',
       },
       formatter(params) {
         const lines = [`<strong>${params[0].axisValue}</strong>`]
@@ -211,10 +256,10 @@ async function renderChart() {
       },
     },
     grid: {
-      left: isHorizontalBar ? 110 : 28,
+      left: isHorizontalBar ? 110 : 36,
       right: 24,
-      top: isGroupedSeries ? 54 : 26,
-      bottom: 56,
+      top: 26,
+      bottom: !isLine || isGroupedSeries ? 68 : 44,
       containLabel: true,
     },
     xAxis: isHorizontalBar
@@ -242,20 +287,20 @@ async function renderChart() {
       : {
           type: 'category',
           data: chartConfig.value.labels,
-          boundaryGap: !isLine,
+          boundaryGap: true,
           axisTick: {
             show: false,
           },
           axisLine: {
             lineStyle: {
-              color: 'rgba(35, 65, 95, 0.28)',
+              color: 'rgba(35, 65, 95, 0.22)',
             },
           },
           axisLabel: {
             interval: 0,
-            rotate: chartConfig.value.labels.length > 5 ? 18 : 0,
+            rotate: chartConfig.value.labels.length > 6 ? 16 : 0,
             color: '#4f647a',
-            fontWeight: 600,
+            fontWeight: 500,
             margin: 14,
           },
         },
@@ -276,10 +321,10 @@ async function renderChart() {
         }
       : {
           type: 'value',
-          splitNumber: 5,
+          splitNumber: 6,
           splitLine: {
             lineStyle: {
-              color: 'rgba(35, 65, 95, 0.12)',
+              color: 'rgba(35, 65, 95, 0.18)',
             },
           },
           axisLine: {
@@ -290,6 +335,7 @@ async function renderChart() {
           },
           axisLabel: {
             color: '#4f647a',
+            fontWeight: 500,
             formatter(value) {
               return formatAxisMetric(value, isCurrencySeries)
             },
@@ -304,6 +350,7 @@ async function validateSession() {
   try {
     const response = await getAuthenticatedUser()
     currentUser.value = response.user
+    await loadHistory()
   } catch {
     clearAuthSession()
     router.push({ name: 'login' })
@@ -322,6 +369,7 @@ async function handleSubmit() {
       execute: true,
       previewLimit: 20,
     })
+    await loadHistory()
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -348,7 +396,55 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="prompt-layout">
+  <main class="prompt-layout" :class="{ 'prompt-layout--history-collapsed': historyCollapsed }">
+    <aside class="history-sidebar" :class="{ 'history-sidebar--collapsed': historyCollapsed }">
+      <div class="history-panel">
+        <div class="history-header">
+          <div>
+            <span class="eyebrow">Histórico</span>
+            <h2>Consultas recentes</h2>
+            <p v-if="!historyCollapsed && canViewAllHistory">Visível para todos os usuários cadastrados.</p>
+            <p v-else-if="!historyCollapsed">Mostrando apenas as suas consultas.</p>
+          </div>
+
+          <button
+            type="button"
+            class="history-toggle"
+            :aria-expanded="(!historyCollapsed).toString()"
+            :aria-label="historyCollapsed ? 'Expandir histórico' : 'Recolher histórico'"
+            @click="toggleHistory"
+          >
+            <span class="history-toggle__icon" :class="{ 'history-toggle__icon--collapsed': historyCollapsed }">
+              ‹
+            </span>
+          </button>
+        </div>
+
+        <div v-if="!historyCollapsed && (isCheckingAuth || isLoadingHistory)" class="history-state">
+          Carregando histórico...
+        </div>
+
+        <div v-else-if="!historyCollapsed && !historyItems.length" class="history-state">
+          Nenhuma consulta registrada ainda.
+        </div>
+
+        <div v-else-if="!historyCollapsed" class="history-list">
+          <button
+            v-for="item in historyItems"
+            :key="item.id"
+            type="button"
+            class="history-item"
+            :class="{ 'history-item--active': selectedHistoryId === item.id }"
+            @click="selectHistoryItem(item)"
+          >
+            <strong>{{ item.question }}</strong>
+            <span v-if="canViewAllHistory" class="history-meta">{{ item.requested_by }}</span>
+            <span class="history-meta">{{ formatHistoryDate(item.created_at) }}</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
     <section class="prompt-shell">
       <header class="topbar">
         <div>
@@ -489,15 +585,31 @@ onBeforeUnmount(() => {
 .prompt-layout {
   min-height: 100vh;
   padding: 1.25rem;
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 1.25rem;
+  transition: grid-template-columns 260ms ease, gap 260ms ease;
+}
+
+.prompt-layout--history-collapsed {
+  grid-template-columns: 78px minmax(0, 1fr);
 }
 
 .prompt-shell {
-  max-width: 1100px;
-  margin: 0 auto;
   display: grid;
   gap: 1.25rem;
 }
 
+.history-sidebar {
+  min-width: 0;
+  transition: width 260ms ease, transform 260ms ease, opacity 220ms ease;
+}
+
+.history-sidebar--collapsed {
+  width: 78px;
+}
+
+.history-panel,
 .topbar,
 .input-card,
 .result-card,
@@ -506,6 +618,126 @@ onBeforeUnmount(() => {
   border: 1px solid rgba(16, 36, 58, 0.08);
   border-radius: 24px;
   box-shadow: 0 18px 50px rgba(16, 36, 58, 0.08);
+}
+
+.history-panel {
+  position: sticky;
+  top: 1.25rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-height: calc(100vh - 2.5rem);
+  overflow: hidden;
+  transition: padding 260ms ease, border-radius 260ms ease;
+}
+
+.history-header {
+  padding: 1.25rem 1.25rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-height: 46px;
+}
+
+.history-header h2 {
+  margin: 0.35rem 0 0;
+}
+
+.history-header p {
+  margin: 0.65rem 0 0;
+  color: #4f647a;
+  font-size: 0.92rem;
+}
+
+.history-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1rem 1.25rem;
+  overflow-y: auto;
+  opacity: 1;
+  transition: opacity 220ms ease;
+}
+
+.history-item {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+  background: #0f2742;
+  color: #f8fbff;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+}
+
+.history-item strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+.history-item--active {
+  border-color: rgba(244, 162, 97, 0.9);
+  box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.18);
+}
+
+.history-meta {
+  color: rgba(248, 251, 255, 0.74);
+  font-size: 0.82rem;
+}
+
+.history-state {
+  padding: 1.1rem 1.25rem 1.4rem;
+  color: #4f647a;
+}
+
+.history-toggle {
+  width: 64px;
+  min-width: 64px;
+  height: 46px;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  background: #edf3f9;
+  color: #0f2742;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.history-toggle__icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  transition: transform 260ms ease;
+}
+
+.history-toggle__icon--collapsed {
+  transform: rotate(180deg);
+}
+
+.history-sidebar--collapsed .history-header {
+  padding: 0;
+  min-height: 46px;
+  align-items: flex-start;
+}
+
+.history-sidebar--collapsed .history-header > div {
+  display: none;
+}
+
+.history-sidebar--collapsed .history-panel {
+  grid-template-rows: auto;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  max-height: none;
+}
+
+.history-sidebar--collapsed .history-toggle {
+  width: 58px;
+  min-width: 58px;
+  height: 46px;
+  padding: 0.85rem 0;
 }
 
 .topbar {
@@ -670,9 +902,8 @@ button:disabled {
   min-height: 360px;
   border-radius: 18px;
   padding: 0.5rem;
-  background:
-    radial-gradient(circle at top left, rgba(30, 93, 143, 0.08), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
+  border: 1px solid rgba(16, 36, 58, 0.08);
+  background: #ffffff;
 }
 
 .result-card--wide {
@@ -680,6 +911,27 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  .prompt-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .prompt-layout--history-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .history-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .history-list {
+    max-height: 260px;
+  }
+
+  .history-sidebar--collapsed {
+    width: auto;
+  }
+
   .topbar,
   .result-grid {
     flex-direction: column;

@@ -151,8 +151,13 @@ def get_script_history(
     limit: int = 20,
     current_user: dict = Depends(get_current_user),
 ) -> dict:
-    history = list_query_history(limit=limit)
+    role = current_user.get("role")
+    history = list_query_history(
+        limit=limit,
+        requested_by=None if role in {"admin", "gerente"} else current_user["usuario"],
+    )
     return {
         "requested_by": current_user["usuario"],
+        "role": role,
         "items": history,
     }
