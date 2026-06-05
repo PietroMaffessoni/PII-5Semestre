@@ -11,6 +11,20 @@ from app.core.db import get_connection
 
 MAX_PREVIEW_ROWS = 100
 ALLOWED_TABLES = {"afko", "afpo", "vbrk", "vbrp", "ekko", "ekpo"}
+MONTH_LABELS = {
+    "01": "Janeiro",
+    "02": "Fevereiro",
+    "03": "Marco",
+    "04": "Abril",
+    "05": "Maio",
+    "06": "Junho",
+    "07": "Julho",
+    "08": "Agosto",
+    "09": "Setembro",
+    "10": "Outubro",
+    "11": "Novembro",
+    "12": "Dezembro",
+}
 FORBIDDEN_SQL_TOKENS = (
     " insert ",
     " update ",
@@ -85,6 +99,59 @@ def execute_preview_query(generated_sql: str, row_limit: int = MAX_PREVIEW_ROWS)
         row_count=len(rows),
         status="executed",
     )
+
+
+def _format_chart_label(column: str, value) -> str:
+    if value is None:
+        return ""
+
+    if column == "mes":
+        match = re.match(r"^(\d{4})-(\d{2})-", str(value))
+        if match:
+            _, month = match.groups()
+            return MONTH_LABELS.get(month, str(value))
+
+    return str(value)
+
+
+def build_chart_payload(rows: list[dict]) -> dict | None:
+    if not rows:
+        return None
+
+    columns = list(rows[0].keys())
+    numeric_columns = [
+        column
+        for column in columns
+        if all(row.get(column) is not None and not isinstance(row.get(column), bool) and _is_number(row.get(column)) for row in rows)
+    ]
+    dimension_columns = [column for column in columns if column not in numeric_columns]
+
+    category_column = "mes" if "mes" in dimension_columns else (dimension_columns[0] if dimension_columns else None)
+    value_column = numeric_columns[0] if numeric_columns else None
+
+    if not category_column or not value_column:
+        return None
+
+    chart_type = "line" if category_column == "mes" else "bar"
+    labels = [_format_chart_label(category_column, row.get(category_column)) for row in rows]
+    values = [float(row.get(value_column, 0)) for row in rows]
+
+    return {
+        "chart_type": chart_type,
+        "category_column": category_column,
+        "value_column": value_column,
+        "labels": labels,
+        "values": values,
+        "value_format": "currency" if "valor" in value_column.lower() else "number",
+    }
+
+
+def _is_number(value) -> bool:
+    try:
+        float(value)
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 def save_query_history(

@@ -26,38 +26,7 @@ const previewColumns = computed(() => {
 
   return Object.keys(result.value.preview_rows[0])
 })
-const chartConfig = computed(() => {
-  const rows = result.value?.preview_rows || []
-  if (!rows.length) {
-    return null
-  }
-
-  const columns = Object.keys(rows[0])
-  const dimensionColumns = columns.filter((column) => {
-    if (column === 'mes') {
-      return true
-    }
-
-    return typeof rows[0][column] === 'string'
-  })
-  const numericColumns = columns.filter((column) =>
-    rows.every((row) => row[column] !== null && row[column] !== '' && !Number.isNaN(Number(row[column]))),
-  )
-
-  const categoryColumn = dimensionColumns[0] || columns[0]
-  const valueColumn = numericColumns[0]
-
-  if (!categoryColumn || !valueColumn) {
-    return null
-  }
-
-  return {
-    categoryColumn,
-    valueColumn,
-    categories: rows.map((row) => formatPreviewValue(categoryColumn, row[categoryColumn])),
-    seriesData: rows.map((row) => Number(row[valueColumn])),
-  }
-})
+const chartConfig = computed(() => result.value?.chart_payload || null)
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -119,7 +88,8 @@ async function renderChart() {
     chartInstance = echarts.init(chartElement.value)
   }
 
-  const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
+  const isCurrencySeries = chartConfig.value.value_format === 'currency'
+  const seriesType = chartConfig.value.chart_type || 'bar'
   chartInstance.setOption({
     animationDuration: 500,
     color: ['#1e5d8f'],
@@ -131,7 +101,7 @@ async function renderChart() {
         const value = isCurrencySeries
           ? currencyFormatter.format(Number(item.value))
           : Number(item.value).toLocaleString('pt-BR')
-        return `${item.axisValue}<br/>${chartConfig.value.valueColumn}: ${value}`
+        return `${item.axisValue}<br/>${chartConfig.value.value_column}: ${value}`
       },
     },
     grid: {
@@ -143,10 +113,10 @@ async function renderChart() {
     },
     xAxis: {
       type: 'category',
-      data: chartConfig.value.categories,
+      data: chartConfig.value.labels,
       axisLabel: {
         interval: 0,
-        rotate: chartConfig.value.categories.length > 5 ? 20 : 0,
+        rotate: chartConfig.value.labels.length > 5 ? 20 : 0,
       },
     },
     yAxis: {
@@ -161,13 +131,19 @@ async function renderChart() {
     },
     series: [
       {
-        name: chartConfig.value.valueColumn,
-        type: 'bar',
+        name: chartConfig.value.value_column,
+        type: seriesType,
         barWidth: '52%',
-        data: chartConfig.value.seriesData,
+        smooth: seriesType === 'line',
+        data: chartConfig.value.values,
         itemStyle: {
           borderRadius: [10, 10, 0, 0],
         },
+        lineStyle: {
+          width: 4,
+        },
+        symbolSize: 10,
+        areaStyle: seriesType === 'line' ? { opacity: 0.08 } : undefined,
       },
     ],
   })
@@ -331,9 +307,9 @@ onBeforeUnmount(() => {
           <article v-if="chartConfig" class="result-card result-card--wide">
             <h2>Visualizacao grafica</h2>
             <p class="result-caption">
-              Grafico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
-              <strong>{{ chartConfig.valueColumn }}</strong>.
-            </p>
+              Grafico montado a partir das colunas <strong>{{ chartConfig.category_column }}</strong> e
+              <strong>{{ chartConfig.value_column }}</strong>.
+              </p>
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 

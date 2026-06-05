@@ -14,6 +14,7 @@ from app.core.db import get_connection
 logger = logging.getLogger(__name__)
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "sap_dictionary.json"
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+WARMUP_QUESTION = "Quero ver o valor faturado por cliente nos ultimos 3 meses"
 
 
 @dataclass
@@ -60,6 +61,20 @@ def _get_embedding_model():
         ) from exc
 
     return SentenceTransformer(DEFAULT_EMBEDDING_MODEL)
+
+
+def preload_generation_assets() -> None:
+    _load_dictionary()
+    _field_label_map()
+    _get_embedding_model()
+
+
+def warmup_vector_search() -> None:
+    try:
+        _retrieve_vector_matches(WARMUP_QUESTION, limit=3)
+        logger.info("Warm-up vetorial concluido.")
+    except Exception as exc:
+        logger.warning("Warm-up vetorial falhou: %s", exc)
 
 
 def _normalize(text: str) -> str:

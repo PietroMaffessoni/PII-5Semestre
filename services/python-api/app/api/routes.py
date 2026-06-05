@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from app.auth.session_store import create_session, get_user_by_token
 from app.repositories.users import find_user_by_credentials
 from app.services.query_execution import (
+    build_chart_payload,
     execute_preview_query,
     list_query_history,
     save_query_history,
@@ -39,6 +40,7 @@ def filter_script_response_by_role(draft: dict, role: str | None) -> dict:
         "requested_by": draft.get("requested_by"),
         "preview_rows": draft.get("preview_rows", []),
         "preview_row_count": draft.get("preview_row_count", 0),
+        "chart_payload": draft.get("chart_payload"),
     }
 
 
@@ -110,6 +112,7 @@ def generate_script(
         preview_rows = execution.rows
         draft["preview_rows"] = execution.rows
         draft["preview_row_count"] = execution.row_count
+        draft["chart_payload"] = build_chart_payload(execution.rows)
 
     save_query_history(
         user=current_user,
