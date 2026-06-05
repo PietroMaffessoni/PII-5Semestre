@@ -16,9 +16,10 @@ const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
 let chartInstance = null
 
-const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
+const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
 const isAdmin = computed(() => currentRole.value === 'admin')
+const hasUsableInterpretation = computed(() => Boolean(result.value?.is_understood))
 const previewColumns = computed(() => {
   if (!result.value?.preview_rows?.length) {
     return []
@@ -27,9 +28,30 @@ const previewColumns = computed(() => {
   return Object.keys(result.value.preview_rows[0])
 })
 const chartConfig = computed(() => result.value?.chart_payload || null)
+const chartTypeLabel = computed(() => {
+  const chartType = chartConfig.value?.chart_type
+
+  if (chartType === 'line') {
+    return 'linhas'
+  }
+
+  if (chartType === 'grouped_bar') {
+    return 'barras agrupadas'
+  }
+
+  if (chartType === 'horizontal_bar') {
+    return 'barras horizontais'
+  }
+
+  return 'barras'
+})
 const currencyFormatter = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
+})
+const compactNumberFormatter = new Intl.NumberFormat('pt-BR', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
 })
 const monthLabels = {
   '01': 'Janeiro',
@@ -76,6 +98,34 @@ function disposeChart() {
   }
 }
 
+function formatAxisMetric(value, isCurrencySeries) {
+  const numericValue = Number(value)
+  if (Number.isNaN(numericValue)) {
+    return value
+  }
+
+  if (isCurrencySeries) {
+    if (Math.abs(numericValue) >= 1000) {
+      return `R$ ${compactNumberFormatter.format(numericValue)}`
+    }
+
+    return currencyFormatter.format(numericValue)
+  }
+
+  return compactNumberFormatter.format(numericValue)
+}
+
+function formatMetricLabel(value, isCurrencySeries) {
+  const numericValue = Number(value)
+  if (Number.isNaN(numericValue)) {
+    return '-'
+  }
+
+  return isCurrencySeries
+    ? currencyFormatter.format(numericValue)
+    : numericValue.toLocaleString('pt-BR')
+}
+
 async function renderChart() {
   await nextTick()
 
@@ -89,63 +139,163 @@ async function renderChart() {
   }
 
   const isCurrencySeries = chartConfig.value.value_format === 'currency'
-  const seriesType = chartConfig.value.chart_type || 'bar'
+  const chartType = chartConfig.value.chart_type || 'bar'
+  const seriesType = chartType === 'line' ? 'line' : 'bar'
+  const isLine = chartType === 'line'
+  const isHorizontalBar = chartType === 'horizontal_bar'
+  const isGroupedSeries = Boolean(chartConfig.value.series_column)
+  const series = (chartConfig.value.series || []).map((item, index) => ({
+    name: item.name,
+    type: seriesType,
+    smooth: isLine,
+    connectNulls: false,
+    barMaxWidth: isHorizontalBar ? 28 : 44,
+    data: item.data,
+    symbolSize: isLine ? 10 : 0,
+    showSymbol: isLine,
+    emphasis: {
+      focus: isGroupedSeries ? 'series' : 'self',
+    },
+    lineStyle: {
+      width: 4,
+    },
+    itemStyle: {
+      borderRadius: isLine ? 8 : (isHorizontalBar ? [0, 10, 10, 0] : [10, 10, 0, 0]),
+    },
+    areaStyle: !isGroupedSeries && isLine ? { opacity: 0.08 } : undefined,
+    label: !isGroupedSeries && !isLine
+      ? {
+          show: true,
+          position: isHorizontalBar ? 'right' : 'top',
+          color: '#23415f',
+          fontWeight: 700,
+          formatter(params) {
+            return formatMetricLabel(params.value, isCurrencySeries)
+          },
+        }
+      : undefined,
+    z: index + 1,
+  }))
+
   chartInstance.setOption({
     animationDuration: 500,
-    color: ['#1e5d8f'],
+    color: ['#1e5d8f', '#0f8b8d', '#f4a261', '#e76f51', '#6c8ebf', '#8ab17d'],
+    legend: {
+      show: isGroupedSeries,
+      top: 0,
+      left: 'center',
+      itemWidth: 14,
+      textStyle: {
+        color: '#23415f',
+        fontWeight: 600,
+      },
+    },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
+      axisPointer: { type: isLine ? 'line' : 'shadow' },
+      backgroundColor: 'rgba(15, 39, 66, 0.95)',
+      borderWidth: 0,
+      textStyle: {
+        color: '#f8fbff',
+      },
       formatter(params) {
-        const item = params[0]
-        const value = isCurrencySeries
-          ? currencyFormatter.format(Number(item.value))
-          : Number(item.value).toLocaleString('pt-BR')
-        return `${item.axisValue}<br/>${chartConfig.value.value_column}: ${value}`
+        const lines = [`<strong>${params[0].axisValue}</strong>`]
+        for (const item of params) {
+          if (item.value === null || item.value === undefined) {
+            continue
+          }
+          const value = formatMetricLabel(item.value, isCurrencySeries)
+          lines.push(`${item.marker}${item.seriesName}: ${value}`)
+        }
+        return lines.join('<br/>')
       },
     },
     grid: {
-      left: 36,
+      left: isHorizontalBar ? 110 : 28,
       right: 24,
-      top: 32,
-      bottom: 52,
+      top: isGroupedSeries ? 54 : 26,
+      bottom: 56,
       containLabel: true,
     },
-    xAxis: {
-      type: 'category',
-      data: chartConfig.value.labels,
-      axisLabel: {
-        interval: 0,
-        rotate: chartConfig.value.labels.length > 5 ? 20 : 0,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter(value) {
-          return isCurrencySeries
-            ? currencyFormatter.format(Number(value))
-            : Number(value).toLocaleString('pt-BR')
+    xAxis: isHorizontalBar
+      ? {
+          type: 'value',
+          splitNumber: 5,
+          splitLine: {
+            lineStyle: {
+              color: 'rgba(35, 65, 95, 0.12)',
+            },
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLabel: {
+            color: '#4f647a',
+            formatter(value) {
+              return formatAxisMetric(value, isCurrencySeries)
+            },
+          },
+        }
+      : {
+          type: 'category',
+          data: chartConfig.value.labels,
+          boundaryGap: !isLine,
+          axisTick: {
+            show: false,
+          },
+          axisLine: {
+            lineStyle: {
+              color: 'rgba(35, 65, 95, 0.28)',
+            },
+          },
+          axisLabel: {
+            interval: 0,
+            rotate: chartConfig.value.labels.length > 5 ? 18 : 0,
+            color: '#4f647a',
+            fontWeight: 600,
+            margin: 14,
+          },
         },
-      },
-    },
-    series: [
-      {
-        name: chartConfig.value.value_column,
-        type: seriesType,
-        barWidth: '52%',
-        smooth: seriesType === 'line',
-        data: chartConfig.value.values,
-        itemStyle: {
-          borderRadius: [10, 10, 0, 0],
+    yAxis: isHorizontalBar
+      ? {
+          type: 'category',
+          data: chartConfig.value.labels,
+          axisTick: {
+            show: false,
+          },
+          axisLine: {
+            show: false,
+          },
+          axisLabel: {
+            color: '#4f647a',
+            fontWeight: 600,
+          },
+        }
+      : {
+          type: 'value',
+          splitNumber: 5,
+          splitLine: {
+            lineStyle: {
+              color: 'rgba(35, 65, 95, 0.12)',
+            },
+          },
+          axisLine: {
+            show: false,
+          },
+          axisTick: {
+            show: false,
+          },
+          axisLabel: {
+            color: '#4f647a',
+            formatter(value) {
+              return formatAxisMetric(value, isCurrencySeries)
+            },
+          },
         },
-        lineStyle: {
-          width: 4,
-        },
-        symbolSize: 10,
-        areaStyle: seriesType === 'line' ? { opacity: 0.08 } : undefined,
-      },
-    ],
+    series,
   })
   chartInstance.resize()
 }
@@ -214,7 +364,7 @@ onBeforeUnmount(() => {
       </header>
 
       <section v-if="isCheckingAuth" class="status-card">
-        <p>Validando autenticacao...</p>
+        <p>Validando autenticação...</p>
       </section>
 
       <template v-else>
@@ -224,7 +374,7 @@ onBeforeUnmount(() => {
             id="prompt"
             v-model.trim="prompt"
             rows="8"
-            placeholder="Ex.: Quero o volume de producao por planta nos ultimos 3 meses para montar um grafico no Power BI."
+            placeholder="Ex.: Quero o volume de produção por planta nos últimos 3 meses para montar um gráfico no Power BI."
           />
 
           <div class="actions">
@@ -236,33 +386,37 @@ onBeforeUnmount(() => {
           <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
         </section>
 
+        <section v-if="result?.user_message" class="status-card status-card--message">
+          <p>{{ result.user_message }}</p>
+        </section>
+
         <section v-if="result" class="result-grid">
-          <article v-if="isAdmin" class="result-card">
-            <h2>Interpretacao da pergunta</h2>
+          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
+            <h2>Interpretação da pergunta</h2>
             <ul>
-              <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
-              <li><strong>Metrica:</strong> {{ result.interpretation.metric }}</li>
-              <li><strong>Dimensoes:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
-              <li><strong>Periodo:</strong> ultimos {{ result.interpretation.period_months }} meses</li>
+              <li><strong>Domínio:</strong> {{ result.interpretation.domain }}</li>
+              <li><strong>Métrica:</strong> {{ result.interpretation.metric }}</li>
+              <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
+              <li><strong>Período:</strong> {{ result.interpretation.period_label }}</li>
               <li><strong>Visual sugerido:</strong> {{ result.interpretation.chart_suggestion }}</li>
             </ul>
           </article>
 
-          <article v-if="isAdmin" class="result-card">
+          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
             <h2>Tabelas sugeridas</h2>
             <ul>
               <li v-for="item in result.suggested_tables" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article v-if="isAdmin" class="result-card">
+          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
             <h2>Filtros sugeridos</h2>
             <ul>
               <li v-for="item in result.suggested_filters" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article v-if="isAdmin" class="result-card result-card--wide">
+          <article v-if="isAdmin && hasUsableInterpretation" class="result-card result-card--wide">
             <h2>Campos relevantes</h2>
             <div class="field-grid">
               <div v-for="item in result.relevant_fields" :key="`${item.table}-${item.field}`" class="field-chip">
@@ -273,7 +427,7 @@ onBeforeUnmount(() => {
             </div>
           </article>
 
-          <article v-if="isAdmin" class="result-card result-card--wide">
+          <article v-if="isAdmin && hasUsableInterpretation" class="result-card result-card--wide">
             <h2>Joins sugeridos</h2>
             <ul>
               <li v-for="item in result.join_suggestions" :key="item">{{ item }}</li>
@@ -283,7 +437,7 @@ onBeforeUnmount(() => {
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
             <p v-if="result.preview_row_count" class="result-caption">
-              {{ result.preview_row_count }} linha(s) retornada(s) para validacao rapida.
+              {{ result.preview_row_count }} linha(s) retornada(s) para validação rápida.
             </p>
             <div v-if="result.preview_rows?.length" class="table-wrapper">
               <table class="preview-table">
@@ -301,19 +455,27 @@ onBeforeUnmount(() => {
                 </tbody>
               </table>
             </div>
-            <p v-else class="result-caption">Nenhuma linha foi retornada para este preview.</p>
+            <p v-else class="result-caption">
+              {{ result.user_message || 'Nenhuma linha foi retornada para este preview.' }}
+            </p>
           </article>
 
-          <article v-if="chartConfig" class="result-card result-card--wide">
-            <h2>Visualizacao grafica</h2>
+          <article v-if="chartConfig && result.preview_row_count" class="result-card result-card--wide">
+            <h2>Visualização gráfica</h2>
             <p class="result-caption">
-              Grafico montado a partir das colunas <strong>{{ chartConfig.category_column }}</strong> e
-              <strong>{{ chartConfig.value_column }}</strong>.
-              </p>
+              Tipo escolhido automaticamente: <strong>{{ chartTypeLabel }}</strong>.
+            </p>
+            <p class="result-caption">
+              Gráfico montado a partir das colunas <strong>{{ chartConfig.category_column }}</strong> e
+              <strong>{{ chartConfig.value_column }}</strong>
+              <template v-if="chartConfig.series_column">
+                , segmentado por <strong>{{ chartConfig.series_column }}</strong>
+              </template>.
+            </p>
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 
-          <article v-if="isAdmin" class="result-card result-card--wide">
+          <article v-if="isAdmin && result.draft_script" class="result-card result-card--wide">
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
@@ -507,7 +669,10 @@ button:disabled {
   width: 100%;
   min-height: 360px;
   border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
+  padding: 0.5rem;
+  background:
+    radial-gradient(circle at top left, rgba(30, 93, 143, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, #eef5fc 100%);
 }
 
 .result-card--wide {

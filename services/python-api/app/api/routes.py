@@ -24,9 +24,9 @@ class LoginRequest(BaseModel):
 
 class ScriptGenerationRequest(BaseModel):
     question: str = Field(..., min_length=10, description="Pergunta de negócio.")
-    context: str | None = Field(default=None, description="Contexto complementar fornecido pelo usuario.")
+    context: str | None = Field(default=None, description="Contexto complementar fornecido pelo usuário.")
     execute: bool = Field(default=False, description="Executa a consulta gerada de forma controlada.")
-    preview_limit: int = Field(default=20, ge=1, le=100, description="Limite maximo de linhas retornadas.")
+    preview_limit: int = Field(default=20, ge=1, le=100, description="Limite máximo de linhas retornadas.")
 
 
 def filter_script_response_by_role(draft: dict, role: str | None) -> dict:
@@ -37,6 +37,8 @@ def filter_script_response_by_role(draft: dict, role: str | None) -> dict:
         "question": draft["question"],
         "context": draft.get("context"),
         "status": draft["status"],
+        "is_understood": draft.get("is_understood", True),
+        "user_message": draft.get("user_message"),
         "requested_by": draft.get("requested_by"),
         "preview_rows": draft.get("preview_rows", []),
         "preview_row_count": draft.get("preview_row_count", 0),
@@ -91,6 +93,17 @@ def generate_script(
     draft = build_script_draft(question=payload.question, context=payload.context)
     draft["requested_by"] = current_user["usuario"]
 
+    if not draft.get("is_understood", True):
+        save_query_history(
+            user=current_user,
+            question=payload.question,
+            generated_sql=draft.get("draft_script", ""),
+            retrieval_mode=draft.get("retrieval_mode", "heuristic_fallback"),
+            execution_status="not_understood",
+            rows=[],
+        )
+        return filter_script_response_by_role(draft, current_user.get("role"))
+
     execution_status = "draft_only"
     preview_rows: list[dict] = []
     if payload.execute:
@@ -113,6 +126,13 @@ def generate_script(
         draft["preview_rows"] = execution.rows
         draft["preview_row_count"] = execution.row_count
         draft["chart_payload"] = build_chart_payload(execution.rows)
+        if execution.row_count == 0:
+            execution_status = "no_data"
+            draft["status"] = "no_data"
+            draft["user_message"] = (
+                "A consulta foi compreendida, mas não retornou dados para os filtros informados."
+            )
+            draft["chart_payload"] = None
 
     save_query_history(
         user=current_user,

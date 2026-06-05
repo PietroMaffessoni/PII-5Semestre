@@ -2,17 +2,17 @@
   "domains": [
     {
       "name": "producao",
-      "business_terms": ["producao", "produzido", "volume", "ordem", "planta", "fabrica", "mes", "periodo"],
+      "business_terms": ["producao", "produzido", "volume", "ordem", "planta", "fabrica", "mes", "periodo", "fabricacao", "manufatura", "output", "chao de fabrica", "ordem de producao", "volume produzido", "quantidade produzida"],
       "chart_recommendation": "grafico de colunas por mes e planta"
     },
     {
       "name": "faturamento",
-      "business_terms": ["faturamento", "venda", "receita", "nota fiscal", "cliente", "mes", "regional"],
+      "business_terms": ["faturamento", "venda", "receita", "nota fiscal", "cliente", "mes", "regional", "valor faturado", "faturado", "vendas", "receita liquida", "documento de faturamento", "organizacao de vendas", "billing"],
       "chart_recommendation": "grafico de linhas ou colunas por mes"
     },
     {
       "name": "compras",
-      "business_terms": ["compra", "fornecedor", "pedido", "gasto", "valor comprado", "material"],
+      "business_terms": ["compra", "fornecedor", "pedido", "gasto", "valor comprado", "material", "compras", "pedido de compra", "aquisicao", "suprimentos", "despesa", "custo de compra", "procurement"],
       "chart_recommendation": "grafico de barras por fornecedor ou material"
     }
   ],
@@ -22,7 +22,7 @@
       "module": "PP",
       "domain": "producao",
       "description": "Cabecalho das ordens de producao",
-      "business_terms": ["producao", "ordem", "planta", "volume produzido", "data de inicio", "quantidade planejada"],
+      "business_terms": ["producao", "ordem", "planta", "volume produzido", "data de inicio", "quantidade planejada", "ordem de fabricacao", "cabecalho de ordem", "inicio da producao"],
       "join_keys": ["AUFNR", "WERKS"],
       "fields": [
         {"name": "AUFNR", "label": "ordem_producao", "type": "text", "description": "Numero da ordem de producao"},
@@ -37,7 +37,7 @@
       "module": "PP",
       "domain": "producao",
       "description": "Itens da ordem de producao",
-      "business_terms": ["material produzido", "item da ordem", "quantidade da ordem"],
+      "business_terms": ["material produzido", "item da ordem", "quantidade da ordem", "item de producao", "componente produzido"],
       "join_keys": ["AUFNR", "MATNR"],
       "fields": [
         {"name": "AUFNR", "label": "ordem_producao", "type": "text", "description": "Numero da ordem de producao"},
@@ -50,7 +50,7 @@
       "module": "SD",
       "domain": "faturamento",
       "description": "Cabecalho do documento de faturamento",
-      "business_terms": ["faturamento", "nota fiscal", "cliente", "receita", "regional", "data de faturamento"],
+      "business_terms": ["faturamento", "nota fiscal", "cliente", "receita", "regional", "data de faturamento", "cabecalho do faturamento", "documento fiscal", "billing header", "organizacao de vendas"],
       "join_keys": ["VBELN", "KUNNR"],
       "fields": [
         {"name": "VBELN", "label": "documento_faturamento", "type": "text", "description": "Numero do documento de faturamento"},
@@ -64,7 +64,7 @@
       "module": "SD",
       "domain": "faturamento",
       "description": "Itens do documento de faturamento",
-      "business_terms": ["valor faturado", "item faturado", "material faturado", "quantidade faturada"],
+      "business_terms": ["valor faturado", "item faturado", "material faturado", "quantidade faturada", "receita por item", "item de faturamento", "valor da venda"],
       "join_keys": ["VBELN", "MATNR"],
       "fields": [
         {"name": "VBELN", "label": "documento_faturamento", "type": "text", "description": "Numero do documento de faturamento"},
@@ -78,7 +78,7 @@
       "module": "MM",
       "domain": "compras",
       "description": "Cabecalho do pedido de compra",
-      "business_terms": ["compra", "pedido", "fornecedor", "data do pedido", "grupo de compras"],
+      "business_terms": ["compra", "pedido", "fornecedor", "data do pedido", "grupo de compras", "pedido de compra", "cabecalho de compras", "purchase order header"],
       "join_keys": ["EBELN", "LIFNR"],
       "fields": [
         {"name": "EBELN", "label": "pedido_compra", "type": "text", "description": "Numero do pedido de compra"},
@@ -92,7 +92,7 @@
       "module": "MM",
       "domain": "compras",
       "description": "Itens do pedido de compra",
-      "business_terms": ["material comprado", "valor comprado", "quantidade comprada"],
+      "business_terms": ["material comprado", "valor comprado", "quantidade comprada", "item do pedido", "item de compra", "valor de aquisicao"],
       "join_keys": ["EBELN", "MATNR"],
       "fields": [
         {"name": "EBELN", "label": "pedido_compra", "type": "text", "description": "Numero do pedido de compra"},

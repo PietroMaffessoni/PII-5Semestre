@@ -25,6 +25,20 @@ MONTH_LABELS = {
     "11": "Novembro",
     "12": "Dezembro",
 }
+MONTH_SHORT_LABELS = {
+    "01": "Jan",
+    "02": "Fev",
+    "03": "Mar",
+    "04": "Abr",
+    "05": "Mai",
+    "06": "Jun",
+    "07": "Jul",
+    "08": "Ago",
+    "09": "Set",
+    "10": "Out",
+    "11": "Nov",
+    "12": "Dez",
+}
 FORBIDDEN_SQL_TOKENS = (
     " insert ",
     " update ",
@@ -114,6 +128,57 @@ def _format_chart_label(column: str, value) -> str:
     return str(value)
 
 
+def _format_chart_axis_label(column: str, value) -> str:
+    if value is None:
+        return ""
+
+    if column == "mes":
+        match = re.match(r"^(\d{4})-(\d{2})-", str(value))
+        if match:
+            _, month = match.groups()
+            return MONTH_SHORT_LABELS.get(month, str(value))
+
+    return str(value)
+
+
+def _choose_chart_type(
+    *,
+    category_column: str,
+    series_column: str | None,
+    labels: list[str],
+    series_payload: list[dict],
+) -> str:
+    if category_column == "mes" and series_column:
+        total_slots = len(labels) * len(series_payload)
+        populated_slots = sum(
+            1
+            for series_item in series_payload
+            for point in series_item["data"]
+            if point is not None
+        )
+        sparsity_ratio = populated_slots / total_slots if total_slots else 0
+
+        if len(labels) <= 4 or sparsity_ratio < 0.75:
+            return "grouped_bar"
+
+        return "line"
+
+    if category_column == "mes":
+        return "line"
+
+    max_label_length = max((len(label) for label in labels), default=0)
+    has_many_categories = len(labels) >= 7
+    has_long_labels = max_label_length >= 12
+
+    if has_many_categories or has_long_labels:
+        return "horizontal_bar"
+
+    if series_column:
+        return "grouped_bar"
+
+    return "bar"
+
+
 def build_chart_payload(rows: list[dict]) -> dict | None:
     if not rows:
         return None
@@ -128,20 +193,88 @@ def build_chart_payload(rows: list[dict]) -> dict | None:
 
     category_column = "mes" if "mes" in dimension_columns else (dimension_columns[0] if dimension_columns else None)
     value_column = numeric_columns[0] if numeric_columns else None
+    series_column = next(
+        (
+            column
+            for column in dimension_columns
+            if column != category_column
+        ),
+        None,
+    )
 
     if not category_column or not value_column:
         return None
 
-    chart_type = "line" if category_column == "mes" else "bar"
-    labels = [_format_chart_label(category_column, row.get(category_column)) for row in rows]
-    values = [float(row.get(value_column, 0)) for row in rows]
+    if category_column == "mes":
+        category_values = sorted(
+            {str(row.get(category_column)) for row in rows if row.get(category_column) is not None}
+        )
+    else:
+        category_values = list(
+            dict.fromkeys(str(row.get(category_column)) for row in rows if row.get(category_column) is not None)
+        )
+
+    labels = [_format_chart_axis_label(category_column, value) for value in category_values]
+    series_payload: list[dict] = []
+
+    if series_column:
+        series_values = list(
+            dict.fromkeys(str(row.get(series_column)) for row in rows if row.get(series_column) is not None)
+        )
+        for series_name in series_values:
+            data_points = []
+            for category_value in category_values:
+                matched_row = next(
+                    (
+                        row
+                        for row in rows
+                        if str(row.get(series_column)) == series_name
+                        and str(row.get(category_column)) == category_value
+                    ),
+                    None,
+                )
+                data_points.append(float(matched_row.get(value_column)) if matched_row else None)
+
+            series_payload.append(
+                {
+                    "name": series_name,
+                    "data": data_points,
+                }
+            )
+    else:
+        series_payload.append(
+            {
+                "name": value_column,
+                "data": [
+                    float(
+                        next(
+                            (
+                                row.get(value_column, 0)
+                                for row in rows
+                                if str(row.get(category_column)) == category_value
+                            ),
+                            0,
+                        )
+                    )
+                    for category_value in category_values
+                ],
+            }
+            )
+
+    chart_type = _choose_chart_type(
+        category_column=category_column,
+        series_column=series_column,
+        labels=labels,
+        series_payload=series_payload,
+    )
 
     return {
         "chart_type": chart_type,
         "category_column": category_column,
         "value_column": value_column,
+        "series_column": series_column,
         "labels": labels,
-        "values": values,
+        "series": series_payload,
         "value_format": "currency" if "valor" in value_column.lower() else "number",
     }
 
