@@ -23,7 +23,7 @@ export const projectCards = {
     items: [
       'Interpretar a intencao do usuario em linguagem natural.',
       'Mapear tabelas e campos SAP relevantes usando RAG sobre dicionarios tecnicos.',
-      'Gerar um rascunho de SQL pronto para validacao e uso no Power BI.',
+      'Gerar um rascunho de SQL pronto para validação e uso no Power BI.',
     ],
   },
   valor: {

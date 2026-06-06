@@ -1,7 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import * as echarts from 'echarts'
 
 import { generateScript, getAuthenticatedUser } from '../services/api'
 import { clearAuthSession, getCurrentUser } from '../services/auth'
@@ -16,6 +15,7 @@ const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
 const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
+let echartsModule = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuario autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
@@ -116,8 +116,12 @@ async function renderChart() {
     return
   }
 
+  if (!echartsModule) {
+    echartsModule = await import('echarts')
+  }
+
   if (!chartInstance) {
-    chartInstance = echarts.init(chartElement.value)
+    chartInstance = echartsModule.init(chartElement.value)
   }
 
   const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
@@ -262,7 +266,7 @@ onBeforeUnmount(() => {
       </header>
 
       <section v-if="isCheckingAuth" class="status-card">
-        <p>Validando autenticacao...</p>
+        <p>Validando autenticação...</p>
       </section>
 
       <template v-else>
@@ -272,7 +276,7 @@ onBeforeUnmount(() => {
             id="prompt"
             v-model.trim="prompt"
             rows="8"
-            placeholder="Ex.: Quero o volume de producao por planta nos ultimos 3 meses para montar um grafico no Power BI."
+            placeholder="Ex.: Quero o volume de produção por planta nos últimos 3 meses para montar um gráfico no Power BI."
           />
 
           <div class="actions">
@@ -286,12 +290,12 @@ onBeforeUnmount(() => {
 
         <section v-if="result" class="result-grid">
           <article v-if="isAdmin" class="result-card">
-            <h2>Interpretacao da pergunta</h2>
+            <h2>Interpretação da pergunta</h2>
             <ul>
               <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
               <li><strong>Metrica:</strong> {{ result.interpretation.metric }}</li>
-              <li><strong>Dimensoes:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
-              <li><strong>Periodo:</strong> ultimos {{ result.interpretation.period_months }} meses</li>
+              <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
+              <li><strong>Período:</strong> últimos {{ result.interpretation.period_months }} meses</li>
               <li><strong>Visual sugerido:</strong> {{ result.interpretation.chart_suggestion }}</li>
             </ul>
           </article>
@@ -331,7 +335,7 @@ onBeforeUnmount(() => {
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
             <p v-if="result.preview_row_count" class="result-caption">
-              {{ result.preview_row_count }} linha(s) retornada(s) para validacao rapida.
+              {{ result.preview_row_count }} linha(s) retornada(s) para validação rápida.
             </p>
             <div v-if="result.preview_rows?.length" class="table-wrapper">
               <table class="preview-table">
@@ -353,9 +357,9 @@ onBeforeUnmount(() => {
           </article>
 
           <article v-if="chartConfig" class="result-card result-card--wide">
-            <h2>Visualizacao grafica</h2>
+            <h2>Visualização gráfica</h2>
             <p class="result-caption">
-              Grafico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
+              Gráfico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
               <strong>{{ chartConfig.valueColumn }}</strong>.
             </p>
             <div ref="chartElement" class="chart-surface"></div>
