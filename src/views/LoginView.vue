@@ -75,13 +75,13 @@ async function handleSubmit() {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  padding: 1.25rem;
+  padding: 1rem;
 }
 
 .login-panel {
   width: min(980px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: 28px;
@@ -94,7 +94,7 @@ async function handleSubmit() {
 }
 
 .brand-block {
-  padding: 2rem;
+  padding: 2.5rem 2rem;
   background: var(--brand-gradient);
   color: #f7fafc;
 }
@@ -103,7 +103,7 @@ async function handleSubmit() {
   display: inline-block;
   margin-bottom: 1rem;
   color: rgba(255, 255, 255, 0.98);
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
@@ -111,52 +111,57 @@ async function handleSubmit() {
 
 .brand-block h1 {
   margin: 0;
-  font-size: clamp(2rem, 3vw, 3rem);
-  line-height: 1.05;
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  line-height: 1.1;
 }
 
 .brand-block p {
-  margin: 1rem 0 0;
+  margin: 1.25rem 0 0;
   max-width: 34rem;
   color: rgba(247, 250, 252, 0.92);
-  line-height: 1.7;
+  line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .supabase-status {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
   background: var(--brand-soft);
   color: rgba(255, 255, 255, 0.92);
+  font-size: 0.85rem;
 }
 
 .login-form {
   display: grid;
-  gap: 1rem;
-  padding: 2rem;
+  gap: 1.25rem;
+  padding: 2.5rem 2rem;
   align-content: center;
 }
 
 .login-form label {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.5rem;
   color: var(--text-primary);
   font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .login-form input {
   width: 100%;
-  padding: 0.95rem 1rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--input-border);
   border-radius: 14px;
   background: var(--input-bg);
   color: var(--text-primary);
+  font-size: 1rem;
 }
 
 .login-form button {
+  margin-top: 0.5rem;
   border: 1px solid transparent;
   border-radius: 14px;
-  padding: 0.95rem 1rem;
+  padding: 1rem;
   background:
     var(--button-surface) padding-box,
     var(--button-border) border-box;
@@ -165,6 +170,7 @@ async function handleSubmit() {
   font-weight: 800;
   cursor: pointer;
   backdrop-filter: blur(16px) saturate(1.18);
+  font-size: 1rem;
 }
 
 .login-form button:disabled {
@@ -175,12 +181,108 @@ async function handleSubmit() {
 .error-message {
   margin: 0;
   color: #b42318;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
+  text-align: center;
 }
 
 @media (max-width: 860px) {
   .login-panel {
     grid-template-columns: 1fr;
+  }
+
+  .brand-block {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-form {
+    padding: 2rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-layout {
+    padding: 0.75rem;
+    padding-top: 4.25rem;
+    min-height: 100svh;
+    place-items: start center;
+  }
+
+  .login-panel {
+    width: 100%;
+    border-radius: 18px;
+  }
+
+  .brand-block,
+  .login-form {
+    padding: 1.15rem;
+  }
+
+  .eyebrow {
+    margin-bottom: 0.7rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+
+  .brand-block h1 {
+    font-size: clamp(1.45rem, 7vw, 1.85rem);
+    line-height: 1.14;
+  }
+
+  .brand-block p {
+    margin-top: 0.75rem;
+    line-height: 1.5;
+    font-size: 0.95rem;
+  }
+
+  .supabase-status {
+    margin-top: 0.9rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+  }
+
+  .login-form {
+    gap: 0.85rem;
+  }
+
+  .login-form input,
+  .login-form button {
+    padding: 0.82rem 0.9rem;
+    border-radius: 12px;
+  }
+
+  .login-form button {
+    min-height: 2.9rem;
+  }
+
+  .error-message {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .login-layout {
+    padding: 0.55rem;
+    padding-top: 3.9rem;
+  }
+
+  .brand-block,
+  .login-form {
+    padding: 0.95rem;
+  }
+
+  .brand-block h1 {
+    font-size: 1.35rem;
+  }
+
+  .brand-block p,
+  .login-form label {
+    font-size: 0.9rem;
+  }
+
+  .login-form input,
+  .login-form button {
+    padding: 0.74rem 0.78rem;
+    font-size: 0.92rem;
   }
 }
 </style>
