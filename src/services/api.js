@@ -43,14 +43,14 @@ function getApiBaseUrls() {
 function buildFetchErrorMessage(baseUrls) {
   const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
   const emulatorHint = 'No emulador, use http://10.0.2.2:8000/api/v1.'
-  const deviceHint = 'No celular fisico, use o IP do seu PC na rede, por exemplo http://192.168.0.10:8000/api/v1.'
+  const deviceHint = 'No celular físico, use o IP do seu PC na rede, por exemplo http://192.168.0.10:8000/api/v1.'
   const triedUrls = `URLs testadas: ${baseUrls.join(', ')}.`
 
   if (!isNativeAndroid) {
-    return `Nao foi possivel conectar com a API. Verifique se o backend esta rodando. ${triedUrls}`
+    return `Não foi possível conectar com a API. Verifique se o backend está rodando. ${triedUrls}`
   }
 
-  return `Nao foi possivel conectar com a API no Android. Verifique se o backend esta rodando, se o app foi sincronizado apos mudar o .env e se a URL da API esta correta. ${emulatorHint} ${deviceHint} ${triedUrls}`
+  return `Não foi possível conectar com a API no Android. Verifique se o backend está rodando, se o app foi sincronizado após mudar o .env e se a URL da API está correta. ${emulatorHint} ${deviceHint} ${triedUrls}`
 }
 
 function buildFriendlyErrorMessage(path, response, payload) {

@@ -5,6 +5,10 @@ const config: CapacitorConfig = {
   appName: 'SAP Assistant',
   webDir: 'dist',
   bundledWebRuntime: false,
+  server: {
+    androidScheme: 'http',
+    cleartext: true,
+  },
 }
 
 export default config

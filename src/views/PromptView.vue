@@ -1,7 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import * as echarts from 'echarts'
 
 import { generateScript, getAuthenticatedUser, getScriptHistory } from '../services/api'
 import { clearAuthSession, getCurrentUser } from '../services/auth'
@@ -21,6 +20,7 @@ const historyCollapsed = ref(false)
 const selectedMonths = ref([])
 const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
+let echartsModule = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
@@ -281,8 +281,12 @@ async function renderChart() {
     return
   }
 
+  if (!echartsModule) {
+    echartsModule = await import('echarts')
+  }
+
   if (!chartInstance) {
-    chartInstance = echarts.init(chartElement.value)
+    chartInstance = echartsModule.init(chartElement.value)
   }
 
   const isCurrencySeries = chartConfig.value.value_format === 'currency'

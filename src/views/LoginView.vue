@@ -1,10 +1,9 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { login } from '../services/api'
 import { saveAuthSession } from '../services/auth'
-import { supabase } from '../utils/supabase'
 
 const router = useRouter()
 const form = reactive({
@@ -13,7 +12,6 @@ const form = reactive({
 })
 const errorMessage = ref('')
 const isSubmitting = ref(false)
-const supabaseStatus = ref('Verificando cliente Supabase...')
 
 async function handleSubmit() {
   errorMessage.value = ''
@@ -31,16 +29,6 @@ async function handleSubmit() {
   }
 }
 
-async function checkSupabaseClient() {
-  const { error } = await supabase.auth.getSession()
-  supabaseStatus.value = error
-    ? 'Falha ao inicializar o cliente Supabase.'
-    : 'Cliente Supabase configurado para o frontend.'
-}
-
-onMounted(() => {
-  checkSupabaseClient()
-})
 </script>
 
 <template>
@@ -57,7 +45,7 @@ onMounted(() => {
 
       <form class="login-form" @submit.prevent="handleSubmit">
         <label>
-          <span>Usuario</span>
+          <span>Usuário</span>
           <input v-model.trim="form.usuario" type="text" name="usuario" autocomplete="username" required>
         </label>
 
