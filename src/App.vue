@@ -1,6 +1,6 @@
 <template>
   <div class="app-shell">
-    <canvas id="particles-canvas"></canvas>
+    <canvas v-if="!isNativeApp" id="particles-canvas"></canvas>
     <button type="button" class="theme-toggle" :aria-pressed="isDarkTheme" @click="toggleTheme">
       <span class="theme-toggle__icon" aria-hidden="true"></span>
       {{ isDarkTheme ? 'Claro' : 'Escuro' }}
@@ -95,8 +95,16 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--page-bg);
   background-attachment: fixed;
@@ -111,6 +119,13 @@ button,
 input,
 textarea {
   font: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+
+button {
+  text-align: center;
+  white-space: normal;
 }
 
 a {
@@ -121,7 +136,30 @@ a {
 .app-shell {
   min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.app-shell * {
+  min-width: 0;
+}
+
+.app-shell main {
+  width: 100%;
+  max-width: 100%;
+}
+
+p,
+h1,
+h2,
+h3,
+li,
+span,
+strong,
+small,
+label,
+button {
+  overflow-wrap: anywhere;
 }
 
 #particles-canvas {
@@ -148,6 +186,7 @@ a {
   align-items: center;
   gap: 0.5rem;
   min-height: 2.55rem;
+  max-width: calc(100vw - 1.5rem);
   padding: 0.65rem 0.9rem;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -162,6 +201,7 @@ a {
 }
 
 .theme-toggle__icon {
+  flex: 0 0 0.9rem;
   width: 0.9rem;
   height: 0.9rem;
   border-radius: 999px;
@@ -172,14 +212,39 @@ a {
 :root[data-theme='dark'] .theme-toggle__icon {
   box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.12);
 }
+
+@media (max-width: 480px) {
+  body {
+    background-attachment: scroll;
+  }
+
+  .theme-toggle {
+    top: 0.6rem;
+    right: 0.6rem;
+    min-height: 2.35rem;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .theme-toggle {
+    gap: 0.35rem;
+    padding: 0.5rem 0.62rem;
+    font-size: 0.82rem;
+  }
+}
 </style>
 
 <script>
+import { Capacitor } from '@capacitor/core';
+
 export default {
   name: 'App',
   data() {
     return {
       theme: 'light',
+      isNativeApp: Capacitor.isNativePlatform(),
       canvas: null,
       ctx: null,
       particles: [],
@@ -199,6 +264,10 @@ export default {
     this.applyTheme();
   },
   mounted() {
+    if (this.isNativeApp) {
+      return;
+    }
+
     this.setupCanvas();
     this.initializeParticles();
     this.animate();
@@ -207,7 +276,10 @@ export default {
     window.addEventListener('resize', this.handleResize);
   },
   beforeUnmount() {
-    cancelAnimationFrame(this.animationFrameId);
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseleave', this.handleMouseLeave);
     window.removeEventListener('resize', this.handleResize);
@@ -224,10 +296,18 @@ export default {
     },
     setupCanvas() {
       this.canvas = document.getElementById('particles-canvas');
+      if (!this.canvas) {
+        return;
+      }
+
       this.ctx = this.canvas.getContext('2d');
       this.resizeCanvas();
     },
     resizeCanvas() {
+      if (!this.canvas) {
+        return;
+      }
+
       this.canvas.width = window.innerWidth;
       this.canvas.height = window.innerHeight;
     },

@@ -1168,4 +1168,159 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .prompt-layout {
+    min-height: 100svh;
+    padding: 0.75rem;
+    padding-top: 4.25rem;
+  }
+
+  .prompt-shell {
+    width: 100%;
+    gap: 0.8rem;
+  }
+
+  .topbar,
+  .input-card,
+  .result-card,
+  .status-card {
+    border-radius: 16px;
+  }
+
+  .topbar {
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 1rem;
+  }
+
+  .topbar h1 {
+    font-size: clamp(1.25rem, 6vw, 1.55rem);
+    line-height: 1.18;
+  }
+
+  .topbar p {
+    line-height: 1.45;
+    font-size: 0.93rem;
+  }
+
+  .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+  }
+
+  .input-card,
+  .status-card,
+  .result-card {
+    padding: 1rem;
+  }
+
+  .input-card textarea {
+    min-height: 9.5rem;
+    padding: 0.85rem;
+    border-radius: 14px;
+    font-size: 0.95rem;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .actions button,
+  .secondary-button {
+    width: 100%;
+    min-height: 2.8rem;
+  }
+
+  .result-card h2 {
+    font-size: 1.12rem;
+    line-height: 1.25;
+  }
+
+  .result-card ul {
+    padding-left: 1rem;
+  }
+
+  .result-grid {
+    gap: 0.8rem;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+
+  .field-chip {
+    padding: 0.75rem;
+    border-radius: 12px;
+  }
+
+  .result-card pre {
+    padding: 0.85rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .table-wrapper {
+    max-width: 100%;
+    border-radius: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .preview-table {
+    min-width: 520px;
+    border-radius: 12px;
+  }
+
+  .preview-table th,
+  .preview-table td {
+    padding: 0.7rem 0.75rem;
+    font-size: 0.86rem;
+  }
+
+  .chart-surface {
+    min-height: 260px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .prompt-layout {
+    padding: 0.55rem;
+    padding-top: 3.9rem;
+  }
+
+  .topbar,
+  .input-card,
+  .status-card,
+  .result-card {
+    padding: 0.85rem;
+  }
+
+  .topbar h1 {
+    font-size: 1.18rem;
+  }
+
+  .topbar p,
+  .input-card label,
+  .result-caption {
+    font-size: 0.88rem;
+  }
+
+  button {
+    padding: 0.72rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .input-card textarea {
+    font-size: 0.9rem;
+  }
+
+  .chart-surface {
+    min-height: 230px;
+  }
+}
 </style>
