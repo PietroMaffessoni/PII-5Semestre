@@ -188,6 +188,9 @@ def _detect_period_months(question: str) -> int:
     match = re.search(r"ultim[oa]s?\s+(\d+)\s+mes", normalized)
     if match:
         return int(match.group(1))
+    generic_match = re.search(r"\b(\d+)\s+mes(?:es)?(?:\s+atras)?\b", normalized)
+    if generic_match:
+        return int(generic_match.group(1))
     if "ultimo trimestre" in normalized:
         return 3
     if "ultimo semestre" in normalized:
@@ -245,6 +248,13 @@ def _build_period_label(period_months: int | None, explicit_year: int | None) ->
     if period_months is None:
         return "periodo nao identificado"
     return f"ultimos {period_months} meses"
+
+
+def _build_period_where_clause(date_column: str, period_months: int) -> str:
+    return (
+        f"{date_column} >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '{period_months} months'"
+        f"\n  AND {date_column} < DATE_TRUNC('month', CURRENT_DATE)"
+    )
 
 
 def _retrieve_vector_matches(question: str, limit: int = 8) -> list[dict]:
@@ -648,9 +658,7 @@ def _build_sql(interpretation: Interpretation) -> str:
             f"DATE_PART('year', {template['where_date']}) = {interpretation.explicit_year}"
         )
     elif interpretation.period_months is not None:
-        where_clauses.append(
-            f"{template['where_date']} >= CURRENT_DATE - INTERVAL '{interpretation.period_months} months'"
-        )
+        where_clauses.append(_build_period_where_clause(template["where_date"], interpretation.period_months))
 
     for field_name, value in interpretation.field_filters.items():
         filter_expression = template["filter_expr"].get(field_name)

@@ -18,6 +18,7 @@ const historyItems = ref([])
 const isLoadingHistory = ref(false)
 const selectedHistoryId = ref(null)
 const historyCollapsed = ref(false)
+const selectedMonths = ref([])
 let chartInstance = null
 
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
@@ -32,7 +33,33 @@ const previewColumns = computed(() => {
 
   return Object.keys(result.value.preview_rows[0])
 })
-const chartConfig = computed(() => result.value?.chart_payload || null)
+const monthOptions = computed(() => {
+  if (!result.value?.preview_rows?.length || !previewColumns.value.includes('mes')) {
+    return []
+  }
+
+  const uniqueValues = [...new Set(result.value.preview_rows.map((row) => String(row.mes)))]
+    .sort((left, right) => left.localeCompare(right))
+
+  return uniqueValues.map((value) => ({
+    value,
+    label: formatPreviewValue('mes', value),
+  }))
+})
+const filteredPreviewRows = computed(() => {
+  const rows = result.value?.preview_rows || []
+  if (!rows.length || !previewColumns.value.includes('mes')) {
+    return rows
+  }
+
+  if (!selectedMonths.value.length) {
+    return []
+  }
+
+  const allowed = new Set(selectedMonths.value)
+  return rows.filter((row) => allowed.has(String(row.mes)))
+})
+const chartConfig = computed(() => buildLocalChartPayload(filteredPreviewRows.value))
 const chartTypeLabel = computed(() => {
   const chartType = chartConfig.value?.chart_type
 
@@ -94,6 +121,82 @@ function formatPreviewValue(column, value) {
   }
 
   return value
+}
+
+function buildLocalChartPayload(rows) {
+  if (!rows?.length) {
+    return null
+  }
+
+  const columns = Object.keys(rows[0])
+  const numericColumns = columns.filter((column) =>
+    rows.every((row) => row[column] !== null && row[column] !== undefined && !Number.isNaN(Number(row[column])))
+  )
+  const dimensionColumns = columns.filter((column) => !numericColumns.includes(column))
+  const categoryColumn = dimensionColumns.includes('mes') ? 'mes' : dimensionColumns[0]
+  const valueColumn = numericColumns[0]
+  const seriesColumn = dimensionColumns.find((column) => column !== categoryColumn) || null
+
+  if (!categoryColumn || !valueColumn) {
+    return result.value?.chart_payload || null
+  }
+
+  const categoryValues = categoryColumn === 'mes'
+    ? [...new Set(rows.map((row) => String(row[categoryColumn])))]
+      .sort((left, right) => left.localeCompare(right))
+    : [...new Set(rows.map((row) => String(row[categoryColumn])))]
+
+  const labels = categoryValues.map((value) => {
+    if (categoryColumn === 'mes') {
+      const match = value.match(/^(\d{4})-(\d{2})-/)
+      if (match) {
+        return ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][Number(match[2]) - 1]
+      }
+    }
+    return value
+  })
+
+  const series = seriesColumn
+    ? [...new Set(rows.map((row) => String(row[seriesColumn])))]
+      .map((seriesName) => ({
+        name: seriesName,
+        data: categoryValues.map((categoryValue) => {
+          const row = rows.find(
+            (item) => String(item[seriesColumn]) === seriesName && String(item[categoryColumn]) === categoryValue
+          )
+          return row ? Number(row[valueColumn]) : null
+        }),
+      }))
+    : [
+        {
+          name: valueColumn,
+          data: categoryValues.map((categoryValue) => {
+            const row = rows.find((item) => String(item[categoryColumn]) === categoryValue)
+            return row ? Number(row[valueColumn]) : 0
+          }),
+        },
+      ]
+
+  let chartType = 'bar'
+  if (categoryColumn === 'mes' && seriesColumn) {
+    chartType = 'grouped_bar'
+  } else if (categoryColumn === 'mes') {
+    chartType = labels.length <= 6 ? 'bar' : 'line'
+  } else if (seriesColumn) {
+    chartType = 'grouped_bar'
+  } else if (labels.length >= 7 || Math.max(...labels.map((label) => label.length), 0) >= 12) {
+    chartType = 'horizontal_bar'
+  }
+
+  return {
+    chart_type: chartType,
+    category_column: categoryColumn,
+    value_column: valueColumn,
+    series_column: seriesColumn,
+    labels,
+    series,
+    value_format: valueColumn.toLowerCase().includes('valor') ? 'currency' : 'number',
+  }
 }
 
 function disposeChart() {
@@ -369,12 +472,26 @@ async function handleSubmit() {
       execute: true,
       previewLimit: 20,
     })
+    selectedMonths.value = monthOptions.value.map((item) => item.value)
     await loadHistory()
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
+}
+
+function toggleMonth(monthValue) {
+  if (selectedMonths.value.includes(monthValue)) {
+    selectedMonths.value = selectedMonths.value.filter((value) => value !== monthValue)
+    return
+  }
+
+  selectedMonths.value = [...selectedMonths.value, monthValue].sort((left, right) => left.localeCompare(right))
+}
+
+function selectAllMonths() {
+  selectedMonths.value = monthOptions.value.map((item) => item.value)
 }
 
 function logout() {
@@ -385,6 +502,19 @@ function logout() {
 onMounted(() => {
   validateSession()
 })
+
+watch(
+  () => result.value?.preview_rows,
+  (rows) => {
+    if (!rows?.length || !previewColumns.value.includes('mes')) {
+      selectedMonths.value = []
+      return
+    }
+
+    selectedMonths.value = [...new Set(rows.map((row) => String(row.mes)))].sort((left, right) => left.localeCompare(right))
+  },
+  { immediate: true }
+)
 
 watch(chartConfig, () => {
   renderChart()
@@ -533,9 +663,29 @@ onBeforeUnmount(() => {
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
             <p v-if="result.preview_row_count" class="result-caption">
-              {{ result.preview_row_count }} linha(s) retornada(s) para validação rápida.
+              {{ filteredPreviewRows.length }} linha(s) visível(is) de {{ result.preview_row_count }} retornada(s) para validação rápida.
             </p>
-            <div v-if="result.preview_rows?.length" class="table-wrapper">
+            <div v-if="monthOptions.length" class="month-filter">
+              <div class="month-filter__header">
+                <strong>Filtrar meses</strong>
+                <button type="button" class="month-filter__action" @click="selectAllMonths">
+                  Selecionar todos
+                </button>
+              </div>
+              <div class="month-filter__chips">
+                <button
+                  v-for="option in monthOptions"
+                  :key="option.value"
+                  type="button"
+                  class="month-chip"
+                  :class="{ 'month-chip--active': selectedMonths.includes(option.value) }"
+                  @click="toggleMonth(option.value)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
+            </div>
+            <div v-if="filteredPreviewRows.length" class="table-wrapper">
               <table class="preview-table">
                 <thead>
                   <tr>
@@ -543,7 +693,7 @@ onBeforeUnmount(() => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(row, index) in result.preview_rows" :key="index">
+                  <tr v-for="(row, index) in filteredPreviewRows" :key="index">
                     <td v-for="column in previewColumns" :key="column">
                       {{ formatPreviewValue(column, row[column]) }}
                     </td>
@@ -552,11 +702,11 @@ onBeforeUnmount(() => {
               </table>
             </div>
             <p v-else class="result-caption">
-              {{ result.user_message || 'Nenhuma linha foi retornada para este preview.' }}
+              {{ monthOptions.length ? 'Nenhum mês está selecionado no filtro atual.' : (result.user_message || 'Nenhuma linha foi retornada para este preview.') }}
             </p>
           </article>
 
-          <article v-if="chartConfig && result.preview_row_count" class="result-card result-card--wide">
+          <article v-if="chartConfig && filteredPreviewRows.length" class="result-card result-card--wide">
             <h2>Visualização gráfica</h2>
             <p class="result-caption">
               Tipo escolhido automaticamente: <strong>{{ chartTypeLabel }}</strong>.
@@ -869,6 +1019,42 @@ button:disabled {
 .result-caption {
   margin: 1rem 0 0;
   color: #4f647a;
+}
+
+.month-filter {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(16, 36, 58, 0.08);
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.month-filter__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.month-filter__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.9rem;
+}
+
+.month-filter__action,
+.month-chip {
+  background: #edf3f9;
+  color: #0f2742;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 700;
+}
+
+.month-chip--active {
+  background: #0f2742;
+  color: #ffffff;
 }
 
 .table-wrapper {

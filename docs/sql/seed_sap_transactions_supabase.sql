@@ -1,5 +1,8 @@
--- Seed SQL para tabelas transacionais ficticias SAP e historico de consultas.
--- Objetivo: permitir execucao controlada do SQL gerado e registrar quem executou cada consulta.
+-- Seed SQL parametrizado para dados transacionais ficticios SAP.
+-- Objetivo:
+-- 1. Popular o banco com um volume maior de dados para producao, faturamento e compras.
+-- 2. Criar historico suficiente para consultas por qualquer quantidade de meses dentro da janela gerada.
+-- 3. Incluir sazonalidade, lacunas de movimento e joins mais ricos entre cabecalho e itens.
 
 BEGIN;
 
@@ -67,88 +70,207 @@ CREATE INDEX IF NOT EXISTS idx_script_query_history_user_id
 CREATE INDEX IF NOT EXISTS idx_script_query_history_requested_by
     ON script_query_history (requested_by, created_at DESC);
 
-INSERT INTO afko (aufnr, werks, gstrp, gltrp, gamng)
-VALUES
-    ('1000001', 'PL01', CURRENT_DATE - INTERVAL '80 days', CURRENT_DATE - INTERVAL '76 days', 1200),
-    ('1000002', 'PL01', CURRENT_DATE - INTERVAL '52 days', CURRENT_DATE - INTERVAL '49 days', 980),
-    ('1000003', 'PL02', CURRENT_DATE - INTERVAL '40 days', CURRENT_DATE - INTERVAL '36 days', 1350),
-    ('1000004', 'PL02', CURRENT_DATE - INTERVAL '25 days', CURRENT_DATE - INTERVAL '21 days', 1425),
-    ('1000005', 'PL03', CURRENT_DATE - INTERVAL '12 days', CURRENT_DATE - INTERVAL '9 days', 1110)
-ON CONFLICT (aufnr) DO UPDATE
-SET
-    werks = EXCLUDED.werks,
-    gstrp = EXCLUDED.gstrp,
-    gltrp = EXCLUDED.gltrp,
-    gamng = EXCLUDED.gamng;
+CREATE INDEX IF NOT EXISTS idx_afko_gstrp_werks
+    ON afko (gstrp, werks);
 
-INSERT INTO afpo (aufnr, matnr, psmng)
-VALUES
-    ('1000001', 'MAT-100', 700),
-    ('1000001', 'MAT-200', 500),
-    ('1000002', 'MAT-100', 450),
-    ('1000002', 'MAT-300', 530),
-    ('1000003', 'MAT-400', 1350),
-    ('1000004', 'MAT-200', 825),
-    ('1000004', 'MAT-500', 600),
-    ('1000005', 'MAT-100', 1110)
-ON CONFLICT (aufnr, matnr) DO UPDATE
-SET psmng = EXCLUDED.psmng;
+CREATE INDEX IF NOT EXISTS idx_afpo_matnr
+    ON afpo (matnr);
 
-INSERT INTO vbrk (vbeln, fkdat, kunnr, vkorg)
-VALUES
-    ('900001', CURRENT_DATE - INTERVAL '85 days', 'CLI-001', 'SUL'),
-    ('900002', CURRENT_DATE - INTERVAL '64 days', 'CLI-002', 'SUL'),
-    ('900003', CURRENT_DATE - INTERVAL '47 days', 'CLI-003', 'SUDESTE'),
-    ('900004', CURRENT_DATE - INTERVAL '29 days', 'CLI-001', 'SUDESTE'),
-    ('900005', CURRENT_DATE - INTERVAL '18 days', 'CLI-004', 'NORDESTE'),
-    ('900006', CURRENT_DATE - INTERVAL '8 days', 'CLI-002', 'SUL')
-ON CONFLICT (vbeln) DO UPDATE
-SET
-    fkdat = EXCLUDED.fkdat,
-    kunnr = EXCLUDED.kunnr,
-    vkorg = EXCLUDED.vkorg;
+CREATE INDEX IF NOT EXISTS idx_vbrk_fkdat_kunnr
+    ON vbrk (fkdat, kunnr);
 
-INSERT INTO vbrp (vbeln, matnr, fkimg, netwr)
-VALUES
-    ('900001', 'MAT-100', 120, 18000),
-    ('900001', 'MAT-200', 80, 12400),
-    ('900002', 'MAT-300', 140, 23100),
-    ('900003', 'MAT-400', 95, 27500),
-    ('900004', 'MAT-100', 110, 16900),
-    ('900004', 'MAT-500', 70, 15200),
-    ('900005', 'MAT-200', 130, 21400),
-    ('900006', 'MAT-300', 150, 24900)
-ON CONFLICT (vbeln, matnr) DO UPDATE
-SET
-    fkimg = EXCLUDED.fkimg,
-    netwr = EXCLUDED.netwr;
+CREATE INDEX IF NOT EXISTS idx_vbrk_vkorg
+    ON vbrk (vkorg);
 
-INSERT INTO ekko (ebeln, bedat, lifnr, ekgrp)
-VALUES
-    ('4500001', CURRENT_DATE - INTERVAL '92 days', 'FOR-001', 'GRP-A'),
-    ('4500002', CURRENT_DATE - INTERVAL '61 days', 'FOR-002', 'GRP-B'),
-    ('4500003', CURRENT_DATE - INTERVAL '34 days', 'FOR-003', 'GRP-A'),
-    ('4500004', CURRENT_DATE - INTERVAL '15 days', 'FOR-001', 'GRP-C')
-ON CONFLICT (ebeln) DO UPDATE
-SET
-    bedat = EXCLUDED.bedat,
-    lifnr = EXCLUDED.lifnr,
-    ekgrp = EXCLUDED.ekgrp;
+CREATE INDEX IF NOT EXISTS idx_vbrp_matnr
+    ON vbrp (matnr);
 
-INSERT INTO ekpo (ebeln, matnr, menge, netwr)
-VALUES
-    ('4500001', 'MAT-100', 300, 12500),
-    ('4500001', 'MAT-200', 250, 9800),
-    ('4500002', 'MAT-300', 410, 18750),
-    ('4500003', 'MAT-400', 290, 21500),
-    ('4500004', 'MAT-500', 360, 19800)
-ON CONFLICT (ebeln, matnr) DO UPDATE
-SET
-    menge = EXCLUDED.menge,
-    netwr = EXCLUDED.netwr;
+CREATE INDEX IF NOT EXISTS idx_ekko_bedat_lifnr
+    ON ekko (bedat, lifnr);
+
+CREATE INDEX IF NOT EXISTS idx_ekko_ekgrp
+    ON ekko (ekgrp);
+
+CREATE INDEX IF NOT EXISTS idx_ekpo_matnr
+    ON ekpo (matnr);
+
+TRUNCATE TABLE afpo, afko, vbrp, vbrk, ekpo, ekko;
+
+DO $$
+DECLARE
+    history_months INTEGER := 36;
+    start_month DATE := (DATE_TRUNC('month', CURRENT_DATE) - MAKE_INTERVAL(months => history_months))::date;
+    plants TEXT[] := ARRAY['PL01', 'PL02', 'PL03', 'PL04', 'PL05'];
+    clients TEXT[] := ARRAY['CLI-001', 'CLI-002', 'CLI-003', 'CLI-004', 'CLI-005', 'CLI-006', 'CLI-007', 'CLI-008', 'CLI-009', 'CLI-010'];
+    client_regions TEXT[] := ARRAY['SUL', 'SUDESTE', 'NORDESTE', 'NORTE', 'CENTRO-OESTE', 'SUL', 'SUDESTE', 'NORDESTE', 'NORTE', 'CENTRO-OESTE'];
+    suppliers TEXT[] := ARRAY['FOR-001', 'FOR-002', 'FOR-003', 'FOR-004', 'FOR-005', 'FOR-006', 'FOR-007'];
+    purchase_groups TEXT[] := ARRAY['GRP-A', 'GRP-B', 'GRP-C', 'GRP-D'];
+    materials TEXT[] := ARRAY['MAT-100', 'MAT-101', 'MAT-102', 'MAT-103', 'MAT-104', 'MAT-105', 'MAT-106', 'MAT-107', 'MAT-108', 'MAT-109', 'MAT-110', 'MAT-111'];
+    seasonality NUMERIC[] := ARRAY[1.16, 0.94, 1.01, 1.08, 1.04, 1.12, 0.96, 0.91, 1.02, 1.07, 1.18, 1.28];
+    order_seq BIGINT := 1000000;
+    invoice_seq BIGINT := 900000;
+    purchase_seq BIGINT := 4500000;
+    month_offset INTEGER;
+    month_start DATE;
+    month_factor NUMERIC;
+    plant_idx INTEGER;
+    client_idx INTEGER;
+    supplier_idx INTEGER;
+    order_loop INTEGER;
+    invoice_loop INTEGER;
+    purchase_loop INTEGER;
+    line_idx INTEGER;
+    line_count INTEGER;
+    order_id TEXT;
+    invoice_id TEXT;
+    purchase_id TEXT;
+    start_date DATE;
+    end_date DATE;
+    volume NUMERIC;
+    quantity NUMERIC;
+    amount NUMERIC;
+    item_share NUMERIC;
+    material_code TEXT;
+    region_code TEXT;
+BEGIN
+    FOR month_offset IN 0..history_months - 1 LOOP
+        month_start := (start_month + MAKE_INTERVAL(months => month_offset))::date;
+        month_factor := seasonality[EXTRACT(MONTH FROM month_start)::INTEGER];
+
+        -- Producao: varios pedidos por planta, com alguns meses sem movimento em plantas especificas.
+        FOR plant_idx IN 1..array_length(plants, 1) LOOP
+            IF (plant_idx = 5 AND EXTRACT(MONTH FROM month_start)::INTEGER IN (2, 7, 11))
+               OR (plant_idx = 4 AND month_offset % 6 = 0) THEN
+                CONTINUE;
+            END IF;
+
+            FOR order_loop IN 1..(2 + ((month_offset + plant_idx) % 3)) LOOP
+                order_seq := order_seq + 1;
+                order_id := order_seq::TEXT;
+                start_date := month_start + (((plant_idx * 3 + order_loop * 5 + month_offset) % 22))::INTEGER;
+                end_date := start_date + (2 + ((plant_idx + order_loop + month_offset) % 5));
+                volume := ROUND(
+                    (
+                        (920 + plant_idx * 145 + order_loop * 60)
+                        * month_factor
+                        * (1 + ((month_offset % 4) * 0.03))
+                    )::NUMERIC,
+                    2
+                );
+
+                INSERT INTO afko (aufnr, werks, gstrp, gltrp, gamng)
+                VALUES (order_id, plants[plant_idx], start_date, end_date, volume);
+
+                line_count := 2 + ((order_loop + month_offset) % 2);
+                FOR line_idx IN 1..line_count LOOP
+                    material_code := materials[((month_offset + plant_idx + line_idx - 1) % array_length(materials, 1)) + 1];
+                    item_share := 0.28 + line_idx * 0.17;
+
+                    INSERT INTO afpo (aufnr, matnr, psmng)
+                    VALUES (
+                        order_id,
+                        material_code,
+                        ROUND((volume * item_share)::NUMERIC, 2)
+                    );
+                END LOOP;
+            END LOOP;
+        END LOOP;
+
+        -- Faturamento: mais clientes, mais regionais, sazonalidade e lacunas de movimento em algumas series.
+        FOR client_idx IN 1..array_length(clients, 1) LOOP
+            region_code := client_regions[client_idx];
+
+            IF (region_code = 'NORTE' AND EXTRACT(MONTH FROM month_start)::INTEGER IN (3, 9))
+               OR (client_idx IN (3, 8) AND month_offset % 5 = 0) THEN
+                CONTINUE;
+            END IF;
+
+            FOR invoice_loop IN 1..(1 + ((month_offset + client_idx) % 3)) LOOP
+                invoice_seq := invoice_seq + 1;
+                invoice_id := invoice_seq::TEXT;
+
+                INSERT INTO vbrk (vbeln, fkdat, kunnr, vkorg)
+                VALUES (
+                    invoice_id,
+                    month_start + (((client_idx * 2 + invoice_loop * 4 + month_offset) % 25))::INTEGER,
+                    clients[client_idx],
+                    region_code
+                );
+
+                line_count := 1 + ((invoice_loop + client_idx + month_offset) % 3);
+                FOR line_idx IN 1..line_count LOOP
+                    material_code := materials[((client_idx + month_offset + line_idx * 2 - 1) % array_length(materials, 1)) + 1];
+                    quantity := ROUND(
+                        (
+                            (45 + client_idx * 11 + line_idx * 14 + (month_offset % 6) * 7)
+                            * month_factor
+                        )::NUMERIC,
+                        2
+                    );
+                    amount := ROUND(
+                        (
+                            quantity
+                            * (58 + ((client_idx + line_idx) % 5) * 11)
+                            * (1 + ((EXTRACT(MONTH FROM month_start)::INTEGER % 4) * 0.02))
+                        )::NUMERIC,
+                        2
+                    );
+
+                    INSERT INTO vbrp (vbeln, matnr, fkimg, netwr)
+                    VALUES (invoice_id, material_code, quantity, amount);
+                END LOOP;
+            END LOOP;
+        END LOOP;
+
+        -- Compras: mais fornecedores, grupos de compra e itens por pedido, com meses sem movimento para algumas series.
+        FOR supplier_idx IN 1..array_length(suppliers, 1) LOOP
+            IF (supplier_idx = 6 AND EXTRACT(MONTH FROM month_start)::INTEGER IN (1, 6, 12))
+               OR (supplier_idx = 7 AND month_offset % 4 = 0) THEN
+                CONTINUE;
+            END IF;
+
+            FOR purchase_loop IN 1..(1 + ((supplier_idx + month_offset) % 2)) LOOP
+                purchase_seq := purchase_seq + 1;
+                purchase_id := purchase_seq::TEXT;
+
+                INSERT INTO ekko (ebeln, bedat, lifnr, ekgrp)
+                VALUES (
+                    purchase_id,
+                    month_start + (((supplier_idx * 3 + purchase_loop * 5 + month_offset) % 24))::INTEGER,
+                    suppliers[supplier_idx],
+                    purchase_groups[((supplier_idx + purchase_loop + month_offset - 1) % array_length(purchase_groups, 1)) + 1]
+                );
+
+                line_count := 2 + ((supplier_idx + purchase_loop + month_offset) % 2);
+                FOR line_idx IN 1..line_count LOOP
+                    material_code := materials[((supplier_idx + month_offset + line_idx - 1) % array_length(materials, 1)) + 1];
+                    quantity := ROUND(
+                        (
+                            (140 + supplier_idx * 35 + line_idx * 26 + (month_offset % 5) * 18)
+                            * (month_factor * 0.92)
+                        )::NUMERIC,
+                        2
+                    );
+                    amount := ROUND(
+                        (
+                            quantity
+                            * (22 + ((supplier_idx + line_idx) % 6) * 4)
+                            * (1 + ((month_offset % 3) * 0.015))
+                        )::NUMERIC,
+                        2
+                    );
+
+                    INSERT INTO ekpo (ebeln, matnr, menge, netwr)
+                    VALUES (purchase_id, material_code, quantity, amount);
+                END LOOP;
+            END LOOP;
+        END LOOP;
+    END LOOP;
+END $$;
 
 COMMIT;
 
 -- Consultas uteis:
--- SELECT * FROM script_query_history ORDER BY created_at DESC;
 -- SELECT requested_by, question, execution_status, row_count, created_at FROM script_query_history ORDER BY created_at DESC;
+-- SELECT COUNT(*) FROM vbrk;
+-- SELECT DATE_TRUNC('month', fkdat) AS mes, COUNT(*) FROM vbrk GROUP BY 1 ORDER BY 1;
