@@ -13,11 +13,14 @@ const isLoading = ref(false)
 const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
+<<<<<<< HEAD
 const historyItems = ref([])
 const isLoadingHistory = ref(false)
 const selectedHistoryId = ref(null)
 const historyCollapsed = ref(false)
 const selectedMonths = ref([])
+=======
+>>>>>>> branch-thami
 const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
 let echartsModule = null
@@ -283,6 +286,7 @@ async function renderChart() {
 
   if (!echartsModule) {
     echartsModule = await import('echarts')
+<<<<<<< HEAD
   }
 
   if (!chartInstance) {
@@ -361,6 +365,30 @@ async function renderChart() {
       textStyle: {
         color: chartTextColor,
       },
+=======
+  }
+
+  if (!chartInstance) {
+    chartInstance = echartsModule.init(chartElement.value)
+  }
+
+  const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
+  const isDarkTheme = theme.value === 'dark'
+  const chartTextColor = isDarkTheme ? '#f6fbff' : '#10243a'
+  const chartMutedColor = isDarkTheme ? '#c4d0dc' : '#4f647a'
+  const chartGridColor = isDarkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(16, 36, 58, 0.1)'
+  const chartTooltipBg = isDarkTheme ? 'rgba(11, 22, 33, 0.96)' : 'rgba(255, 255, 255, 0.96)'
+  const chartTooltipBorder = isDarkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(16, 36, 58, 0.12)'
+  chartInstance.setOption({
+    animationDuration: 500,
+    color: [isDarkTheme ? '#4b1c73' : '#5cb3a1'],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: chartTooltipBg,
+      borderColor: chartTooltipBorder,
+      textStyle: { color: chartTextColor },
+>>>>>>> branch-thami
       formatter(params) {
         const lines = [`<strong>${params[0].axisValue}</strong>`]
         for (const item of params) {
@@ -380,6 +408,7 @@ async function renderChart() {
       bottom: !isLine || isGroupedSeries ? 68 : 44,
       containLabel: true,
     },
+<<<<<<< HEAD
     xAxis: isHorizontalBar
       ? {
           type: 'value',
@@ -460,6 +489,44 @@ async function renderChart() {
           },
         },
     series,
+=======
+    xAxis: {
+      type: 'category',
+      data: chartConfig.value.categories,
+      axisLine: { lineStyle: { color: chartGridColor } },
+      axisTick: { lineStyle: { color: chartGridColor } },
+      axisLabel: {
+        color: chartMutedColor,
+        interval: 0,
+        rotate: chartConfig.value.categories.length > 5 ? 20 : 0,
+      },
+    },
+    yAxis: {
+      type: 'value',
+      axisLine: { lineStyle: { color: chartGridColor } },
+      splitLine: { lineStyle: { color: chartGridColor } },
+      axisLabel: {
+        color: chartMutedColor,
+        formatter(value) {
+          return isCurrencySeries
+            ? currencyFormatter.format(Number(value))
+            : Number(value).toLocaleString('pt-BR')
+        },
+      },
+    },
+    series: [
+      {
+        name: chartConfig.value.valueColumn,
+        type: 'bar',
+        barWidth: '52%',
+        data: chartConfig.value.seriesData,
+        itemStyle: {
+          borderRadius: [10, 10, 0, 0],
+          color: isDarkTheme ? '#4b1c73' : '#5cb3a1',
+        },
+      },
+    ],
+>>>>>>> branch-thami
   }, true)
   chartInstance.resize()
 }
@@ -639,6 +706,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="result" class="result-grid">
+<<<<<<< HEAD
           <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
             <h2>Interpretação da pergunta</h2>
             <ul>
@@ -646,6 +714,15 @@ onBeforeUnmount(() => {
               <li><strong>Métrica:</strong> {{ result.interpretation.metric }}</li>
               <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
               <li><strong>Período:</strong> {{ result.interpretation.period_label }}</li>
+=======
+          <article v-if="isAdmin" class="result-card">
+            <h2>Interpretação da pergunta</h2>
+            <ul>
+              <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
+              <li><strong>Metrica:</strong> {{ result.interpretation.metric }}</li>
+              <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
+              <li><strong>Período:</strong> últimos {{ result.interpretation.period_months }} meses</li>
+>>>>>>> branch-thami
               <li><strong>Visual sugerido:</strong> {{ result.interpretation.chart_suggestion }}</li>
             </ul>
           </article>
@@ -685,7 +762,11 @@ onBeforeUnmount(() => {
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
             <p v-if="result.preview_row_count" class="result-caption">
+<<<<<<< HEAD
               {{ filteredPreviewRows.length }} linha(s) visível(is) de {{ result.preview_row_count }} retornada(s) para validação rápida.
+=======
+              {{ result.preview_row_count }} linha(s) retornada(s) para validação rápida.
+>>>>>>> branch-thami
             </p>
             <div v-if="monthOptions.length" class="month-filter">
               <div class="month-filter__header">
@@ -728,6 +809,7 @@ onBeforeUnmount(() => {
             </p>
           </article>
 
+<<<<<<< HEAD
           <article v-if="chartConfig && filteredPreviewRows.length" class="result-card result-card--wide">
             <h2>Visualização gráfica</h2>
             <p class="result-caption">
@@ -739,11 +821,22 @@ onBeforeUnmount(() => {
               <template v-if="chartConfig.series_column">
                 , segmentado por <strong>{{ chartConfig.series_column }}</strong>
               </template>.
+=======
+          <article v-if="chartConfig" class="result-card result-card--wide">
+            <h2>Visualização gráfica</h2>
+            <p class="result-caption">
+              Gráfico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
+              <strong>{{ chartConfig.valueColumn }}</strong>.
+>>>>>>> branch-thami
             </p>
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 
+<<<<<<< HEAD
           <article v-if="isAdmin && result.draft_script" class="result-card result-card--wide result-card--sql">
+=======
+          <article v-if="isAdmin" class="result-card result-card--wide result-card--sql">
+>>>>>>> branch-thami
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
@@ -794,6 +887,7 @@ onBeforeUnmount(() => {
     background 220ms ease,
     border-color 220ms ease,
     box-shadow 220ms ease;
+<<<<<<< HEAD
 }
 
 .history-panel {
@@ -915,6 +1009,8 @@ onBeforeUnmount(() => {
   min-width: 58px;
   height: 46px;
   padding: 0.85rem 0;
+=======
+>>>>>>> branch-thami
 }
 
 .topbar {
@@ -1053,6 +1149,7 @@ button:disabled {
 .result-caption {
   margin: 1rem 0 0;
   color: var(--text-secondary);
+<<<<<<< HEAD
 }
 
 .month-filter {
@@ -1089,6 +1186,8 @@ button:disabled {
 .month-chip--active {
   background: #0f2742;
   color: #ffffff;
+=======
+>>>>>>> branch-thami
 }
 
 .table-wrapper {
@@ -1126,8 +1225,11 @@ button:disabled {
   width: 100%;
   min-height: 360px;
   border-radius: 18px;
+<<<<<<< HEAD
   padding: 0.5rem;
   border: 1px solid var(--panel-border);
+=======
+>>>>>>> branch-thami
   background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
 }
 

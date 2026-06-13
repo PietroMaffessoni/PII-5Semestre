@@ -1,0 +1,10 @@
+{
+	"appId": "br.edu.pii.sapassistant",
+	"appName": "SAP Assistant",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"server": {
+		"androidScheme": "http",
+		"cleartext": true
+	}
+}
