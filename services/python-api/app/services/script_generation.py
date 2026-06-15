@@ -75,6 +75,7 @@ class Interpretation:
     filters: list[str]
     chart_suggestion: str
     explicit_year: int | None
+    include_current_month: bool
     field_filters: dict[str, str]
     unresolved_filters: list[str]
 
@@ -102,6 +103,7 @@ def _empty_interpretation() -> dict:
         "filters": [],
         "chart_suggestion": None,
         "explicit_year": None,
+        "include_current_month": False,
         "field_filters": {},
         "unresolved_filters": [],
     }
@@ -213,6 +215,20 @@ def _detect_explicit_year(question: str) -> int | None:
     return None
 
 
+def _detect_include_current_month(question: str) -> bool:
+    normalized = _normalize(question)
+    current_month_patterns = (
+        "incluindo o mes atual",
+        "incluindo mes atual",
+        "inclui o mes atual",
+        "incluir o mes atual",
+        "com o mes atual",
+        "contando com o mes atual",
+        "considerando o mes atual",
+    )
+    return any(pattern in normalized for pattern in current_month_patterns)
+
+
 def _detect_field_filters(question: str) -> tuple[dict[str, str], list[str]]:
     normalized = _normalize(question)
     field_filters: dict[str, str] = {}
@@ -242,15 +258,27 @@ def _detect_field_filters(question: str) -> tuple[dict[str, str], list[str]]:
     return field_filters, unresolved_filters
 
 
-def _build_period_label(period_months: int | None, explicit_year: int | None) -> str:
+def _build_period_label(
+    period_months: int | None,
+    explicit_year: int | None,
+    include_current_month: bool,
+) -> str:
     if explicit_year is not None:
         return f"ano de {explicit_year}"
     if period_months is None:
         return "periodo nao identificado"
-    return f"ultimos {period_months} meses"
+    suffix = " incluindo o mes atual" if include_current_month else ""
+    return f"ultimos {period_months} meses{suffix}"
 
 
-def _build_period_where_clause(date_column: str, period_months: int) -> str:
+def _build_period_where_clause(date_column: str, period_months: int, include_current_month: bool) -> str:
+    if include_current_month:
+        completed_months_before_current = max(period_months - 1, 0)
+        return (
+            f"{date_column} >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '{completed_months_before_current} months'"
+            f"\n  AND {date_column} < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'"
+        )
+
     return (
         f"{date_column} >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '{period_months} months'"
         f"\n  AND {date_column} < DATE_TRUNC('month', CURRENT_DATE)"
@@ -471,12 +499,14 @@ def _infer_filters(
     *,
     period_months: int | None,
     explicit_year: int | None,
+    include_current_month: bool,
     field_filters: dict[str, str],
 ) -> list[str]:
     if explicit_year is not None:
         filters = [f"periodo: ano de {explicit_year}"]
     elif period_months is not None:
-        filters = [f"periodo: ultimos {period_months} meses"]
+        suffix = " incluindo o mes atual" if include_current_month else ""
+        filters = [f"periodo: ultimos {period_months} meses{suffix}"]
     else:
         filters = ["periodo: nao identificado"]
 
@@ -499,11 +529,13 @@ def interpret_question(question: str, dictionary: dict, retrieval: RetrievalCont
     dimensions = _infer_dimensions(question, domain["name"], retrieval.preferred_labels)
     explicit_year = _detect_explicit_year(question)
     period_months = None if explicit_year is not None else _detect_period_months(question)
+    include_current_month = explicit_year is None and _detect_include_current_month(question)
     field_filters, unresolved_filters = _detect_field_filters(question)
     filters = _infer_filters(
         dimensions,
         period_months=period_months,
         explicit_year=explicit_year,
+        include_current_month=include_current_month,
         field_filters=field_filters,
     )
 
@@ -512,10 +544,11 @@ def interpret_question(question: str, dictionary: dict, retrieval: RetrievalCont
         metric=metric,
         dimensions=dimensions,
         period_months=period_months,
-        period_label=_build_period_label(period_months, explicit_year),
+        period_label=_build_period_label(period_months, explicit_year, include_current_month),
         filters=filters,
         chart_suggestion=domain["chart_recommendation"],
         explicit_year=explicit_year,
+        include_current_month=include_current_month,
         field_filters=field_filters,
         unresolved_filters=unresolved_filters,
     )
@@ -658,7 +691,13 @@ def _build_sql(interpretation: Interpretation) -> str:
             f"DATE_PART('year', {template['where_date']}) = {interpretation.explicit_year}"
         )
     elif interpretation.period_months is not None:
-        where_clauses.append(_build_period_where_clause(template["where_date"], interpretation.period_months))
+        where_clauses.append(
+            _build_period_where_clause(
+                template["where_date"],
+                interpretation.period_months,
+                interpretation.include_current_month,
+            )
+        )
 
     for field_name, value in interpretation.field_filters.items():
         filter_expression = template["filter_expr"].get(field_name)
@@ -773,6 +812,7 @@ def build_script_draft(question: str, context: str | None = None) -> dict:
             "filters": interpretation.filters,
             "chart_suggestion": interpretation.chart_suggestion,
             "explicit_year": interpretation.explicit_year,
+            "include_current_month": interpretation.include_current_month,
             "field_filters": interpretation.field_filters,
         },
         "suggested_tables": [table["name"] for table in tables],

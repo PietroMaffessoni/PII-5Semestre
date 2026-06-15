@@ -77,6 +77,18 @@ const visibleMonthRangeLabel = computed(() => {
 
   return `${formatPreviewValue('mes', months[0])} a ${formatPreviewValue('mes', months[months.length - 1])}`
 })
+const periodExclusionNotice = computed(() => {
+  const question = result.value?.question || ''
+  const normalizedQuestion = normalizeSearchText(question)
+  const match = normalizedQuestion.match(/\bultim[oa]s?\s+(\d+)\s+mes(?:es)?\b/)
+
+  if (!match || includesCurrentMonth(normalizedQuestion)) {
+    return ''
+  }
+
+  const monthText = Number(match[1]) === 1 ? 'mes' : 'meses'
+  return `"Últimos ${match[1]} ${monthText}" considera meses completos encerrados e não inclui o mês atual. Para incluir o mês atual, especifique isso no prompt.`
+})
 const chartConfig = computed(() => buildLocalChartPayload(filteredPreviewRows.value))
 const chartTypeLabel = computed(() => {
   const chartType = chartConfig.value?.chart_type
@@ -142,6 +154,25 @@ function parseMonthParts(value) {
     year: match[1],
     month: match[2],
   }
+}
+
+function normalizeSearchText(value) {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function includesCurrentMonth(normalizedQuestion) {
+  return [
+    'incluindo o mes atual',
+    'incluindo mes atual',
+    'inclui o mes atual',
+    'incluir o mes atual',
+    'com o mes atual',
+    'contando com o mes atual',
+    'considerando o mes atual',
+  ].some((pattern) => normalizedQuestion.includes(pattern))
 }
 
 function compareMonthValues(left, right) {
@@ -284,6 +315,16 @@ function disposeChart() {
   }
 }
 
+async function loadEcharts() {
+  if (echartsModule) {
+    return echartsModule
+  }
+
+  const module = await import('../services/echarts')
+  echartsModule = module.getEcharts()
+  return echartsModule
+}
+
 function formatHistoryDate(value) {
   if (!value) {
     return ''
@@ -358,12 +399,10 @@ async function renderChart() {
     return
   }
 
-  if (!echartsModule) {
-    echartsModule = await import('echarts')
-  }
+  const echarts = await loadEcharts()
 
   if (!chartInstance) {
-    chartInstance = echartsModule.init(chartElement.value)
+    chartInstance = echarts.init(chartElement.value)
   }
 
   const isCurrencySeries = chartConfig.value.value_format === 'currency'
@@ -790,6 +829,9 @@ onBeforeUnmount(() => {
             <p v-if="visibleMonthRangeLabel" class="result-caption">
               Período exibido: <strong>{{ visibleMonthRangeLabel }}</strong>.
             </p>
+            <p v-if="periodExclusionNotice" class="result-caption result-caption--notice">
+              {{ periodExclusionNotice }}
+            </p>
             <div v-if="monthOptions.length" class="month-filter">
               <div class="month-filter__header">
                 <strong>Filtrar meses</strong>
@@ -1202,6 +1244,13 @@ button:disabled {
 .result-caption {
   margin: 1rem 0 0;
   color: var(--text-secondary);
+}
+
+.result-caption--notice {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--surface-bg);
 }
 
 .month-filter {
