@@ -97,14 +97,15 @@ function toggleTheme() {
 }
 
 .login-panel {
-  width: min(980px, 100%);
+  width: min(1040px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
-  border-radius: 28px;
-  overflow: hidden;
+  border-radius: 24px;
+  overflow: clip;
   box-shadow: var(--panel-shadow);
+  backdrop-filter: blur(18px) saturate(1.08);
   transition:
     background 220ms ease,
     border-color 220ms ease,
@@ -112,7 +113,10 @@ function toggleTheme() {
 }
 
 .brand-block {
-  padding: 2.5rem 2rem;
+  display: grid;
+  gap: 1.25rem;
+  align-content: center;
+  padding: 2.4rem 2.2rem;
   background: var(--brand-gradient);
   color: #f7fafc;
 }
@@ -129,20 +133,21 @@ function toggleTheme() {
 
 .brand-block h1 {
   margin: 0;
-  font-size: clamp(1.75rem, 5vw, 2.75rem);
-  line-height: 1.1;
+  font-size: clamp(1.8rem, 4.4vw, 2.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 
 .brand-block p {
-  margin: 1.25rem 0 0;
+  margin: 0;
   max-width: 34rem;
   color: rgba(247, 250, 252, 0.92);
   line-height: 1.6;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
 }
 
 .supabase-status {
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
   padding: 0.8rem 0.95rem;
   border-radius: 14px;
   background: var(--brand-soft);
@@ -156,6 +161,7 @@ function toggleTheme() {
   gap: 1.25rem;
   padding: 7rem 2rem 2.5rem;
   align-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
 }
 
 .login-theme-toggle {
@@ -209,6 +215,10 @@ function toggleTheme() {
   background: var(--input-bg);
   color: var(--text-primary);
   font-size: 1rem;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 220ms ease;
 }
 
 .login-form button[type='submit'] {
@@ -225,6 +235,18 @@ function toggleTheme() {
   cursor: pointer;
   backdrop-filter: blur(16px) saturate(1.18);
   font-size: 1rem;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.login-form button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.login-form button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .login-form button[type='submit']:disabled {
@@ -245,7 +267,7 @@ function toggleTheme() {
   }
 
   .brand-block {
-    padding: 2rem 1.5rem;
+    padding: 2rem 1.5rem 1.25rem;
   }
 
   .login-form {

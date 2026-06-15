@@ -7,47 +7,48 @@
 
 <style>
 :root {
-  --page-bg: linear-gradient(135deg, #fff8e0 0%, #d0dde9 100%);
+  --page-bg: linear-gradient(180deg, #f7fafc 0%, #edf3f8 100%);
   --text-primary: #10243a;
-  --text-secondary: #4f647a;
+  --text-secondary: #536579;
   --panel-bg: rgba(255, 255, 255, 0.9);
-  --panel-border: rgba(16, 36, 58, 0.08);
-  --panel-shadow: 0 18px 50px rgba(16, 36, 58, 0.08);
-  --surface-bg: #f8fbff;
-  --surface-strong: #eaf2fb;
-  --brand-gradient: linear-gradient(135deg, #e09144 0%, #5cb3a1 100%);
-  --brand-soft: rgba(255, 255, 255, 0.08);
-  --accent-primary: #5cb3a1;
-  --chart-accent: #5cb3a1;
-  --sql-bg: #f7d3a2;
-  --sql-text: #24313a;
-  --button-fill: #5cb3a1;
-  --button-surface: linear-gradient(#5cb3a1, #5cb3a1);
+  --panel-border: rgba(16, 36, 58, 0.09);
+  --panel-shadow: 0 18px 48px rgba(16, 36, 58, 0.08);
+  --surface-bg: #f7fbff;
+  --surface-strong: #e7eef5;
+  --brand-gradient: linear-gradient(135deg, #0f2742 0%, #0f766e 100%);
+  --brand-soft: rgba(255, 255, 255, 0.1);
+  --accent-primary: #0f766e;
+  --chart-accent: #0f766e;
+  --sql-bg: #e6f4f1;
+  --sql-text: #153038;
+  --button-fill: #0f766e;
+  --button-surface: linear-gradient(#0f766e, #0f766e);
   --button-text: #ffffff;
-  --button-border: linear-gradient(#5cb3a1, #5cb3a1);
+  --button-border: linear-gradient(#0f766e, #0f766e);
   --button-shadow: none;
-  --secondary-button-fill: #edf3f9;
-  --secondary-button-surface: linear-gradient(#edf3f9, #edf3f9);
+  --secondary-button-fill: #eef3f8;
+  --secondary-button-surface: linear-gradient(#eef3f8, #eef3f8);
   --secondary-button-text: #0f2742;
-  --input-bg: #f8fbff;
-  --input-border: rgba(35, 65, 95, 0.18);
-  --particle-rgb: 255, 255, 255;
+  --input-bg: #f9fcff;
+  --input-border: rgba(35, 65, 95, 0.16);
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.18);
+  --particle-rgb: 145, 168, 186;
 }
 
 :root[data-theme='dark'] {
-  --page-bg: linear-gradient(135deg, #02131a 0%, #12071e 100%);
+  --page-bg: linear-gradient(180deg, #07111a 0%, #0d1b27 100%);
   --text-primary: #f6fbff;
   --text-secondary: #c4d0dc;
-  --panel-bg: rgba(35, 51, 65, 0.92);
-  --panel-border: rgba(218, 235, 255, 0.16);
-  --panel-shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
-  --surface-bg: rgba(25, 39, 52, 0.88);
-  --surface-strong: rgba(44, 61, 78, 0.95);
-  --brand-gradient: linear-gradient(135deg, #063946 0%, #281042 100%);
+  --panel-bg: rgba(14, 27, 39, 0.92);
+  --panel-border: rgba(218, 235, 255, 0.14);
+  --panel-shadow: 0 22px 70px rgba(0, 0, 0, 0.3);
+  --surface-bg: rgba(22, 35, 48, 0.9);
+  --surface-strong: rgba(35, 49, 63, 0.96);
+  --brand-gradient: linear-gradient(135deg, #0b2633 0%, #0f4f5b 100%);
   --brand-soft: rgba(255, 255, 255, 0.11);
   --accent-primary: #cfd9ff;
-  --chart-accent: #4b1c73;
-  --sql-bg: #063946;
+  --chart-accent: #4f9fb3;
+  --sql-bg: rgba(8, 37, 48, 0.96);
   --sql-text: #f6fbff;
   --button-fill: rgba(255, 255, 255, 0.08);
   --button-surface: linear-gradient(
@@ -82,9 +83,10 @@
     rgba(255, 255, 255, 0.06) 100%
   );
   --secondary-button-text: #f6fbff;
-  --input-bg: rgba(14, 27, 38, 0.78);
-  --input-border: rgba(220, 235, 255, 0.18);
-  --particle-rgb: 125, 158, 184;
+  --input-bg: rgba(11, 23, 34, 0.78);
+  --input-border: rgba(220, 235, 255, 0.16);
+  --focus-ring: 0 0 0 3px rgba(99, 181, 165, 0.22);
+  --particle-rgb: 124, 149, 171;
 }
 
 * {
@@ -106,6 +108,7 @@ body {
   background-attachment: fixed;
   background-size: cover;
   color: var(--text-primary);
+  line-height: 1.5;
   transition:
     background 220ms ease,
     color 220ms ease;
@@ -119,9 +122,30 @@ textarea {
   max-width: 100%;
 }
 
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  caret-color: auto;
+  touch-action: manipulation;
+}
+
 button {
   text-align: center;
   white-space: normal;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+::selection {
+  background: rgba(15, 118, 110, 0.18);
+  color: var(--text-primary);
 }
 
 a {
@@ -261,17 +285,17 @@ export default {
     },
     initializeParticles() {
       this.particles = [];
-      const particleCount = 50;
+      const particleCount = 34;
       for (let i = 0; i < particleCount; i++) {
         this.particles.push({
           x: Math.random() * this.canvas.width,
           y: Math.random() * this.canvas.height,
           vx: (Math.random() - 0.5) * 0.5,
           vy: (Math.random() - 0.5) * 0.5,
-          radius: Math.random() * 10 + 8,
-          opacity: Math.random() * 0.5 + 0.3,
-          targetOpacity: Math.random() * 0.5 + 0.3,
-          baseOpacity: Math.random() * 0.5 + 0.3,
+          radius: Math.random() * 6 + 4,
+          opacity: Math.random() * 0.25 + 0.12,
+          targetOpacity: Math.random() * 0.25 + 0.12,
+          baseOpacity: Math.random() * 0.25 + 0.12,
           opacityChangeTimer: Math.random() * 120 + 60,
           opacityChangeInterval: Math.random() * 120 + 60,
           vx_damping: 1,
@@ -280,10 +304,10 @@ export default {
       }
     },
     updateParticles() {
-      const repulsionRadius = 120;
-      const repulsionForce = 0.3;
+      const repulsionRadius = 100;
+      const repulsionForce = 0.22;
       const opacityLerpSpeed = 0.02;
-      const velocityDamping = 0.98;
+      const velocityDamping = 0.985;
 
       for (let particle of this.particles) {
         // Update opacity timer

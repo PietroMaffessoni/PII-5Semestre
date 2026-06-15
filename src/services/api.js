@@ -4,6 +4,7 @@ import { clearAuthSession, getAuthToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 const DEFAULT_ANDROID_EMULATOR_API_URL = 'http://10.0.2.2:8000/api/v1'
+const REQUEST_TIMEOUT_MS = 15000
 const SCRIPT_PROMPT_EXAMPLES = [
   'Quero ver o valor faturado por cliente nos últimos 3 meses',
   'Quero analisar o volume de produção por planta no último trimestre',
@@ -53,6 +54,10 @@ function buildFetchErrorMessage(baseUrls) {
   return `Não foi possível conectar com a API no Android. Verifique se o backend está rodando, se o app foi sincronizado após mudar o .env e se a URL da API está correta. ${emulatorHint} ${deviceHint} ${triedUrls}`
 }
 
+function buildTimeoutErrorMessage(baseUrls) {
+  return `A requisição expirou após ${REQUEST_TIMEOUT_MS / 1000}s. URLs testadas: ${baseUrls.join(', ')}.`
+}
+
 function buildFriendlyErrorMessage(path, response, payload) {
   const examples = SCRIPT_PROMPT_EXAMPLES
     .map((example) => `"${example}"`)
@@ -95,15 +100,27 @@ async function request(path, options = {}) {
   let lastError = null
 
   for (const baseUrl of baseUrls) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    const timeoutId = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null
+
     try {
       response = await fetch(`${baseUrl}${path}`, {
         ...options,
         headers,
+        signal: controller?.signal,
       })
       lastError = null
       break
     } catch (error) {
       lastError = error
+      if (error?.name === 'AbortError') {
+        lastError = new Error(buildTimeoutErrorMessage(baseUrls))
+        break
+      }
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
     }
   }
 

@@ -419,6 +419,20 @@ async function renderChart() {
   const chartTooltipBg = isDarkTheme ? 'rgba(11, 22, 33, 0.96)' : 'rgba(255, 255, 255, 0.98)'
   const chartTooltipBorder = isDarkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(35, 65, 95, 0.14)'
   const chartBackground = isDarkTheme ? 'transparent' : '#ffffff'
+  const labelCount = chartConfig.value.labels?.length || 0
+  const seriesCount = chartConfig.value.series?.length || 0
+  const chartWidth = chartElement.value.clientWidth || window.innerWidth
+  const isCompactChart = chartWidth < 560
+  const hasDenseCategories = labelCount > (isCompactChart ? 4 : 7)
+  const shouldUseDataZoom = !isHorizontalBar && labelCount > (isCompactChart ? 5 : 9)
+  const shouldShowValueLabels = !isGroupedSeries && !isLine && !isCompactChart && labelCount <= 6
+  const axisLabelRotation = hasDenseCategories ? (isCompactChart ? 42 : 24) : 0
+  const axisLabelInterval = hasDenseCategories ? 'auto' : 0
+  const formatCategoryAxisLabel = (value) => {
+    const text = String(value)
+    const maxLength = isCompactChart ? 9 : 14
+    return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
+  }
   const series = (chartConfig.value.series || []).map((item, index) => ({
     name: item.name,
     type: seriesType,
@@ -438,7 +452,7 @@ async function renderChart() {
       borderRadius: isLine ? 6 : (isHorizontalBar ? [0, 4, 4, 0] : [4, 4, 0, 0]),
     },
     areaStyle: undefined,
-    label: !isGroupedSeries && !isLine
+    label: shouldShowValueLabels
       ? {
           show: true,
           position: isHorizontalBar ? 'right' : 'top',
@@ -460,42 +474,95 @@ async function renderChart() {
       : ['#5cb3a1', '#3b82c4', '#f28b28', '#b8b8b8', '#2d6ea3', '#6aa6d8'],
     legend: {
       show: isGroupedSeries || !isLine,
+      type: seriesCount > 3 || isCompactChart ? 'scroll' : 'plain',
       bottom: 0,
       left: 'center',
       itemWidth: 14,
+      itemGap: isCompactChart ? 8 : 12,
+      pageIconColor: chartMutedColor,
+      pageTextStyle: {
+        color: chartMutedColor,
+      },
       textStyle: {
         color: chartMutedColor,
         fontWeight: 500,
+        overflow: 'truncate',
+        width: isCompactChart ? 96 : 160,
       },
     },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: isLine ? 'line' : 'shadow' },
+      confine: true,
       backgroundColor: chartTooltipBg,
       borderColor: chartTooltipBorder,
       borderWidth: 1,
+      extraCssText: [
+        `max-width: ${isCompactChart ? 260 : 360}px`,
+        'white-space: normal',
+        'overflow-wrap: anywhere',
+        'box-sizing: border-box',
+      ].join(';'),
       textStyle: {
         color: chartTextColor,
       },
+      position(point, _params, _dom, _rect, size) {
+        const gap = 8
+        const tooltipWidth = size.contentSize[0]
+        const tooltipHeight = size.contentSize[1]
+        const viewWidth = size.viewSize[0]
+        const viewHeight = size.viewSize[1]
+        const x = Math.min(Math.max(point[0] + gap, gap), Math.max(gap, viewWidth - tooltipWidth - gap))
+        const preferredY = point[1] - tooltipHeight - gap
+        const fallbackY = point[1] + gap
+        const y = preferredY >= gap
+          ? preferredY
+          : Math.min(Math.max(fallbackY, gap), Math.max(gap, viewHeight - tooltipHeight - gap))
+
+        return [x, y]
+      },
       formatter(params) {
-        const lines = [`<strong>${params[0].axisValue}</strong>`]
+        const lines = [`<strong class="chart-tooltip-title">${params[0].axisValue}</strong>`]
         for (const item of params) {
           if (item.value === null || item.value === undefined) {
             continue
           }
           const value = formatMetricLabel(item.value, isCurrencySeries)
-          lines.push(`${item.marker}${item.seriesName}: ${value}`)
+          lines.push(`<span class="chart-tooltip-row">${item.marker}<span>${item.seriesName}: ${value}</span></span>`)
         }
         return lines.join('<br/>')
       },
     },
     grid: {
-      left: isHorizontalBar ? 110 : 36,
-      right: 24,
-      top: 26,
-      bottom: !isLine || isGroupedSeries ? 68 : 44,
+      left: isHorizontalBar ? (isCompactChart ? 88 : 120) : (isCompactChart ? 20 : 36),
+      right: isHorizontalBar ? (isCompactChart ? 30 : 42) : (isCompactChart ? 16 : 24),
+      top: 28,
+      bottom: shouldUseDataZoom ? 98 : (!isLine || isGroupedSeries ? 74 : 48),
       containLabel: true,
     },
+    dataZoom: shouldUseDataZoom
+      ? [
+          {
+            type: 'inside',
+            start: 0,
+            end: Math.min(100, Math.max(38, Math.round((5 / labelCount) * 100))),
+          },
+          {
+            type: 'slider',
+            height: 18,
+            bottom: 42,
+            start: 0,
+            end: Math.min(100, Math.max(38, Math.round((5 / labelCount) * 100))),
+            brushSelect: false,
+            borderColor: chartAxisColor,
+            fillerColor: isDarkTheme ? 'rgba(124, 58, 237, 0.26)' : 'rgba(15, 118, 110, 0.18)',
+            handleSize: 14,
+            textStyle: {
+              color: chartMutedColor,
+            },
+          },
+        ]
+      : [],
     xAxis: isHorizontalBar
       ? {
           type: 'value',
@@ -513,6 +580,7 @@ async function renderChart() {
           },
           axisLabel: {
             color: chartMutedColor,
+            hideOverlap: true,
             formatter(value) {
               return formatAxisMetric(value, isCurrencySeries)
             },
@@ -531,11 +599,13 @@ async function renderChart() {
             },
           },
           axisLabel: {
-            interval: 0,
-            rotate: chartConfig.value.labels.length > 6 ? 16 : 0,
+            interval: axisLabelInterval,
+            rotate: axisLabelRotation,
+            hideOverlap: true,
             color: chartMutedColor,
             fontWeight: 500,
-            margin: 14,
+            margin: isCompactChart ? 18 : 14,
+            formatter: formatCategoryAxisLabel,
           },
         },
     yAxis: isHorizontalBar
@@ -551,6 +621,8 @@ async function renderChart() {
           axisLabel: {
             color: chartMutedColor,
             fontWeight: 600,
+            hideOverlap: true,
+            formatter: formatCategoryAxisLabel,
           },
         }
       : {
@@ -646,8 +718,14 @@ function handleThemeChange(event) {
   renderChart()
 }
 
+function handleWindowResize() {
+  chartInstance?.resize()
+  renderChart()
+}
+
 onMounted(() => {
   window.addEventListener('themechange', handleThemeChange)
+  window.addEventListener('resize', handleWindowResize)
   validateSession()
 })
 
@@ -670,6 +748,7 @@ watch(chartConfig, () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('themechange', handleThemeChange)
+  window.removeEventListener('resize', handleWindowResize)
   disposeChart()
 })
 </script>
@@ -1551,6 +1630,372 @@ button:disabled {
 
   .chart-surface {
     min-height: 230px;
+  }
+}
+
+.prompt-layout {
+  width: min(1560px, 100%);
+  margin: 0 auto;
+  padding: clamp(0.85rem, 1.45vw, 1.25rem);
+  align-items: start;
+  gap: clamp(0.85rem, 1.15vw, 1.15rem);
+}
+
+.prompt-shell {
+  gap: 1rem;
+  min-width: 0;
+}
+
+.history-panel,
+.topbar,
+.input-card,
+.result-card,
+.status-card {
+  border-radius: 20px;
+  backdrop-filter: blur(18px) saturate(1.05);
+  box-shadow: 0 18px 44px rgba(16, 36, 58, 0.08);
+}
+
+.history-panel {
+  top: 1rem;
+}
+
+.history-header {
+  padding: 1.1rem 1.1rem 0;
+}
+
+.history-header h2 {
+  font-size: 1.08rem;
+  line-height: 1.2;
+}
+
+.history-header p,
+.history-meta,
+.result-caption {
+  color: var(--text-secondary);
+}
+
+.history-toggle {
+  width: 56px;
+  min-width: 56px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--panel-border);
+  box-shadow: none;
+}
+
+.history-toggle__icon {
+  font-size: 1.2rem;
+}
+
+.history-list {
+  padding: 0.95rem 0.95rem 1.1rem;
+  gap: 0.7rem;
+}
+
+.history-item {
+  background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
+  color: var(--text-primary);
+  border-color: var(--panel-border);
+  box-shadow: none;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.history-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 118, 110, 0.28);
+}
+
+.history-item strong {
+  color: var(--text-primary);
+}
+
+.history-meta {
+  color: var(--text-secondary);
+}
+
+.history-item--active {
+  border-color: rgba(15, 118, 110, 0.5);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+}
+
+.topbar {
+  align-items: center;
+  padding: 1.35rem 1.4rem;
+  gap: 1rem;
+}
+
+.topbar > div {
+  min-width: 0;
+  max-width: 64rem;
+}
+
+.topbar h1 {
+  font-size: clamp(1.5rem, 2vw, 2.05rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.topbar p {
+  max-width: 64ch;
+}
+
+.input-card,
+.status-card,
+.result-card {
+  padding: 1.35rem;
+}
+
+.input-card label {
+  color: var(--text-primary);
+}
+
+.input-card textarea {
+  min-height: 11rem;
+  padding: 0.95rem 1rem;
+  border-radius: 16px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 220ms ease;
+}
+
+button,
+input,
+textarea {
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 220ms ease,
+    color 220ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  box-shadow: var(--focus-ring);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actions button {
+  min-width: 11rem;
+}
+
+.secondary-button {
+  border: 1px solid var(--panel-border);
+  box-shadow: none;
+}
+
+.result-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.result-card h2 {
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.result-card ul {
+  margin: 0.9rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.result-card li {
+  line-height: 1.45;
+}
+
+.field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+.field-chip {
+  padding: 0.85rem;
+  border-radius: 14px;
+  background: var(--surface-bg);
+  border-color: var(--panel-border);
+}
+
+.field-chip strong {
+  color: var(--text-primary);
+}
+
+.month-filter {
+  margin-top: 0.9rem;
+  padding: 0.95rem;
+  border-radius: 16px;
+  background: var(--surface-bg);
+  border-color: var(--panel-border);
+}
+
+.month-filter__header {
+  flex-wrap: wrap;
+}
+
+.month-filter__action,
+.month-chip {
+  background: var(--surface-strong);
+  color: var(--text-primary);
+  border-radius: 999px;
+}
+
+.month-chip--active {
+  background: var(--accent-primary);
+  color: #ffffff;
+}
+
+.table-wrapper {
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  background: var(--surface-bg);
+}
+
+.preview-table {
+  min-width: 100%;
+}
+
+.preview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-strong);
+}
+
+.preview-table td {
+  background: transparent;
+}
+
+.chart-surface {
+  min-height: 320px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
+}
+
+:global(.chart-tooltip-title) {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+:global(.chart-tooltip-row) {
+  display: inline-flex;
+  max-width: 100%;
+  gap: 0.25rem;
+  align-items: flex-start;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+:global(.chart-tooltip-row > span:last-child) {
+  min-width: 0;
+}
+
+.result-card--sql pre {
+  background: var(--sql-bg);
+  color: var(--sql-text);
+}
+
+@media (max-width: 760px) {
+  .prompt-layout {
+    grid-template-columns: 1fr;
+    padding-top: 4.1rem;
+  }
+
+  .history-panel {
+    position: static;
+    max-height: none;
+  }
+
+  .history-list {
+    max-height: 260px;
+  }
+
+  .topbar,
+  .input-card,
+  .status-card,
+  .result-card {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions button,
+  .secondary-button {
+    width: 100%;
+  }
+
+  .chart-surface {
+    min-height: 340px;
+  }
+}
+
+@media (max-width: 480px) {
+  .prompt-layout {
+    padding: 0.75rem;
+    padding-top: 3.95rem;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar h1 {
+    font-size: 1.35rem;
+  }
+
+  .history-header {
+    padding: 0.95rem 0.95rem 0;
+  }
+
+  .history-list {
+    padding: 0.85rem;
+  }
+
+  .history-item {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .input-card textarea {
+    min-height: 9.75rem;
+  }
+
+  .chart-surface {
+    min-height: 360px;
+    padding: 0.35rem;
+  }
+
+  .preview-table th,
+  .preview-table td {
+    padding: 0.72rem 0.75rem;
+    font-size: 0.86rem;
   }
 }
 </style>
