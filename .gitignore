@@ -11,7 +11,11 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
+venv/
+**/venv/
 services/python-api/venv
+services/python-ai/.tmp/
+android.untracked-before-cherry-pick/
 coverage/
 *.local
 *.tsbuildinfo

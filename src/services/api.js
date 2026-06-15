@@ -4,14 +4,11 @@ import { clearAuthSession, getAuthToken } from './auth'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 const DEFAULT_ANDROID_EMULATOR_API_URL = 'http://10.0.2.2:8000/api/v1'
-<<<<<<< HEAD
 const SCRIPT_PROMPT_EXAMPLES = [
   'Quero ver o valor faturado por cliente nos últimos 3 meses',
   'Quero analisar o volume de produção por planta no último trimestre',
   'Mostre o valor comprado por fornecedor nos últimos 6 meses',
 ]
-=======
->>>>>>> branch-thami
 
 function getApiBaseUrls() {
   const urls = [API_BASE_URL]
@@ -55,7 +52,6 @@ function buildFetchErrorMessage(baseUrls) {
 
   return `Não foi possível conectar com a API no Android. Verifique se o backend está rodando, se o app foi sincronizado após mudar o .env e se a URL da API está correta. ${emulatorHint} ${deviceHint} ${triedUrls}`
 }
-<<<<<<< HEAD
 
 function buildFriendlyErrorMessage(path, response, payload) {
   const examples = SCRIPT_PROMPT_EXAMPLES
@@ -82,8 +78,6 @@ function buildFriendlyErrorMessage(path, response, payload) {
 
   return 'Não foi possível concluir a requisição.'
 }
-=======
->>>>>>> branch-thami
 
 async function request(path, options = {}) {
   const token = getAuthToken()
@@ -126,11 +120,7 @@ async function request(path, options = {}) {
   const payload = await response.json().catch(() => ({}))
 
   if (!response.ok) {
-<<<<<<< HEAD
     throw new Error(buildFriendlyErrorMessage(path, response, payload))
-=======
-    throw new Error(payload.detail || 'Não foi possível concluir a requisição.')
->>>>>>> branch-thami
   }
 
   return payload

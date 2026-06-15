@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { login } from '../services/api'
@@ -12,6 +12,8 @@ const form = reactive({
 })
 const errorMessage = ref('')
 const isSubmitting = ref(false)
+const theme = ref(document.documentElement.dataset.theme || window.localStorage.getItem('theme') || 'light')
+const isDarkTheme = computed(() => theme.value === 'dark')
 
 async function handleSubmit() {
   errorMessage.value = ''
@@ -29,6 +31,17 @@ async function handleSubmit() {
   }
 }
 
+function applyTheme(nextTheme) {
+  theme.value = nextTheme
+  document.documentElement.dataset.theme = nextTheme
+  window.localStorage.setItem('theme', nextTheme)
+  window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: nextTheme } }))
+}
+
+function toggleTheme() {
+  applyTheme(isDarkTheme.value ? 'light' : 'dark')
+}
+
 </script>
 
 <template>
@@ -44,6 +57,11 @@ async function handleSubmit() {
       </div>
 
       <form class="login-form" @submit.prevent="handleSubmit">
+        <button type="button" class="login-theme-toggle" :aria-pressed="isDarkTheme" @click="toggleTheme">
+          <span class="login-theme-toggle__icon" aria-hidden="true"></span>
+          {{ isDarkTheme ? 'Claro' : 'Escuro' }}
+        </button>
+
         <label>
           <span>Usuário</span>
           <input v-model.trim="form.usuario" type="text" name="usuario" autocomplete="username" required>
@@ -133,10 +151,46 @@ async function handleSubmit() {
 }
 
 .login-form {
+  position: relative;
   display: grid;
   gap: 1.25rem;
-  padding: 2.5rem 2rem;
+  padding: 7rem 2rem 2.5rem;
   align-content: center;
+}
+
+.login-theme-toggle {
+  position: absolute;
+  top: 1.25rem;
+  right: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.55rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background:
+    var(--secondary-button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--secondary-button-text);
+  box-shadow: var(--button-shadow);
+  font-weight: 800;
+  cursor: pointer;
+  backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.login-theme-toggle__icon {
+  flex: 0 0 0.9rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: inset -0.28rem -0.16rem 0 rgba(255, 248, 224, 0.9);
+}
+
+:global(:root[data-theme='dark']) .login-theme-toggle__icon {
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.12);
 }
 
 .login-form label {
@@ -157,7 +211,7 @@ async function handleSubmit() {
   font-size: 1rem;
 }
 
-.login-form button {
+.login-form button[type='submit'] {
   margin-top: 0.5rem;
   border: 1px solid transparent;
   border-radius: 14px;
@@ -173,7 +227,7 @@ async function handleSubmit() {
   font-size: 1rem;
 }
 
-.login-form button:disabled {
+.login-form button[type='submit']:disabled {
   opacity: 0.7;
   cursor: progress;
 }
@@ -195,7 +249,11 @@ async function handleSubmit() {
   }
 
   .login-form {
-    padding: 2rem 1.5rem;
+    padding: 6.5rem 1.5rem 2rem;
+  }
+
+  .login-theme-toggle {
+    right: 1.5rem;
   }
 }
 
@@ -215,6 +273,18 @@ async function handleSubmit() {
   .brand-block,
   .login-form {
     padding: 1.15rem;
+  }
+
+  .login-form {
+    padding-top: 4.8rem;
+  }
+
+  .login-theme-toggle {
+    top: 1rem;
+    right: 1rem;
+    min-height: 2.35rem;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
   }
 
   .eyebrow {
@@ -245,12 +315,12 @@ async function handleSubmit() {
   }
 
   .login-form input,
-  .login-form button {
+  .login-form button[type='submit'] {
     padding: 0.82rem 0.9rem;
     border-radius: 12px;
   }
 
-  .login-form button {
+  .login-form button[type='submit'] {
     min-height: 2.9rem;
   }
 
@@ -270,6 +340,17 @@ async function handleSubmit() {
     padding: 0.95rem;
   }
 
+  .login-form {
+    padding-top: 4.4rem;
+  }
+
+  .login-theme-toggle {
+    right: 0.85rem;
+    gap: 0.35rem;
+    padding: 0.5rem 0.62rem;
+    font-size: 0.82rem;
+  }
+
   .brand-block h1 {
     font-size: 1.35rem;
   }
@@ -280,7 +361,7 @@ async function handleSubmit() {
   }
 
   .login-form input,
-  .login-form button {
+  .login-form button[type='submit'] {
     padding: 0.74rem 0.78rem;
     font-size: 0.92rem;
   }

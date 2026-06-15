@@ -13,14 +13,11 @@ const isLoading = ref(false)
 const isCheckingAuth = ref(true)
 const currentUser = ref(getCurrentUser())
 const chartElement = ref(null)
-<<<<<<< HEAD
 const historyItems = ref([])
 const isLoadingHistory = ref(false)
 const selectedHistoryId = ref(null)
 const historyCollapsed = ref(false)
 const selectedMonths = ref([])
-=======
->>>>>>> branch-thami
 const theme = ref(document.documentElement.dataset.theme || 'light')
 let chartInstance = null
 let echartsModule = null
@@ -30,6 +27,7 @@ const currentRole = computed(() => currentUser.value?.role || '')
 const isAdmin = computed(() => currentRole.value === 'admin')
 const canViewAllHistory = computed(() => ['admin', 'gerente'].includes(currentRole.value))
 const hasUsableInterpretation = computed(() => Boolean(result.value?.is_understood))
+const isDarkTheme = computed(() => theme.value === 'dark')
 const previewColumns = computed(() => {
   if (!result.value?.preview_rows?.length) {
     return []
@@ -43,7 +41,7 @@ const monthOptions = computed(() => {
   }
 
   const uniqueValues = [...new Set(result.value.preview_rows.map((row) => String(row.mes)))]
-    .sort((left, right) => left.localeCompare(right))
+    .sort(compareMonthValues)
 
   return uniqueValues.map((value) => ({
     value,
@@ -61,7 +59,23 @@ const filteredPreviewRows = computed(() => {
   }
 
   const allowed = new Set(selectedMonths.value)
-  return rows.filter((row) => allowed.has(String(row.mes)))
+  return rows
+    .filter((row) => allowed.has(String(row.mes)))
+    .sort(comparePreviewRows)
+})
+const visibleMonthRangeLabel = computed(() => {
+  if (!filteredPreviewRows.value.length || !previewColumns.value.includes('mes')) {
+    return ''
+  }
+
+  const months = [...new Set(filteredPreviewRows.value.map((row) => String(row.mes)))]
+    .sort(compareMonthValues)
+
+  if (months.length === 1) {
+    return formatPreviewValue('mes', months[0])
+  }
+
+  return `${formatPreviewValue('mes', months[0])} a ${formatPreviewValue('mes', months[months.length - 1])}`
 })
 const chartConfig = computed(() => buildLocalChartPayload(filteredPreviewRows.value))
 const chartTypeLabel = computed(() => {
@@ -103,6 +117,73 @@ const monthLabels = {
   '11': 'Novembro',
   '12': 'Dezembro',
 }
+const shortMonthLabels = {
+  '01': 'Jan',
+  '02': 'Fev',
+  '03': 'Mar',
+  '04': 'Abr',
+  '05': 'Mai',
+  '06': 'Jun',
+  '07': 'Jul',
+  '08': 'Ago',
+  '09': 'Set',
+  '10': 'Out',
+  '11': 'Nov',
+  '12': 'Dez',
+}
+
+function parseMonthParts(value) {
+  const match = String(value).match(/^(\d{4})-(\d{2})-/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    year: match[1],
+    month: match[2],
+  }
+}
+
+function compareMonthValues(left, right) {
+  const leftParts = parseMonthParts(left)
+  const rightParts = parseMonthParts(right)
+
+  if (leftParts && rightParts) {
+    return `${leftParts.year}-${leftParts.month}`.localeCompare(`${rightParts.year}-${rightParts.month}`)
+  }
+
+  return String(left).localeCompare(String(right))
+}
+
+function comparePreviewRows(left, right) {
+  const monthComparison = compareMonthValues(left.mes, right.mes)
+  if (monthComparison !== 0) {
+    return monthComparison
+  }
+
+  return previewColumns.value
+    .filter((column) => column !== 'mes')
+    .reduce((comparison, column) => {
+      if (comparison !== 0) {
+        return comparison
+      }
+
+      return String(left[column] ?? '').localeCompare(String(right[column] ?? ''), 'pt-BR')
+    }, 0)
+}
+
+function formatMonthLabel(value, style = 'long') {
+  const parts = parseMonthParts(value)
+  if (!parts) {
+    return value
+  }
+
+  if (style === 'short') {
+    return `${shortMonthLabels[parts.month] || parts.month}/${parts.year}`
+  }
+
+  return `${monthLabels[parts.month] || parts.month} de ${parts.year}`
+}
 
 function formatPreviewValue(column, value) {
   if (value === null || value === undefined) {
@@ -110,11 +191,7 @@ function formatPreviewValue(column, value) {
   }
 
   if (column === 'mes') {
-    const match = String(value).match(/^(\d{4})-(\d{2})-/)
-    if (match) {
-      const [, , month] = match
-      return monthLabels[month] || value
-    }
+    return formatMonthLabel(value)
   }
 
   if (column === 'valor_faturado') {
@@ -152,10 +229,7 @@ function buildLocalChartPayload(rows) {
 
   const labels = categoryValues.map((value) => {
     if (categoryColumn === 'mes') {
-      const match = value.match(/^(\d{4})-(\d{2})-/)
-      if (match) {
-        return ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][Number(match[2]) - 1]
-      }
+      return formatMonthLabel(value, 'short')
     }
     return value
   })
@@ -286,7 +360,6 @@ async function renderChart() {
 
   if (!echartsModule) {
     echartsModule = await import('echarts')
-<<<<<<< HEAD
   }
 
   if (!chartInstance) {
@@ -365,30 +438,6 @@ async function renderChart() {
       textStyle: {
         color: chartTextColor,
       },
-=======
-  }
-
-  if (!chartInstance) {
-    chartInstance = echartsModule.init(chartElement.value)
-  }
-
-  const isCurrencySeries = chartConfig.value.valueColumn.toLowerCase().includes('valor')
-  const isDarkTheme = theme.value === 'dark'
-  const chartTextColor = isDarkTheme ? '#f6fbff' : '#10243a'
-  const chartMutedColor = isDarkTheme ? '#c4d0dc' : '#4f647a'
-  const chartGridColor = isDarkTheme ? 'rgba(255, 255, 255, 0.12)' : 'rgba(16, 36, 58, 0.1)'
-  const chartTooltipBg = isDarkTheme ? 'rgba(11, 22, 33, 0.96)' : 'rgba(255, 255, 255, 0.96)'
-  const chartTooltipBorder = isDarkTheme ? 'rgba(255, 255, 255, 0.16)' : 'rgba(16, 36, 58, 0.12)'
-  chartInstance.setOption({
-    animationDuration: 500,
-    color: [isDarkTheme ? '#4b1c73' : '#5cb3a1'],
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      backgroundColor: chartTooltipBg,
-      borderColor: chartTooltipBorder,
-      textStyle: { color: chartTextColor },
->>>>>>> branch-thami
       formatter(params) {
         const lines = [`<strong>${params[0].axisValue}</strong>`]
         for (const item of params) {
@@ -408,7 +457,6 @@ async function renderChart() {
       bottom: !isLine || isGroupedSeries ? 68 : 44,
       containLabel: true,
     },
-<<<<<<< HEAD
     xAxis: isHorizontalBar
       ? {
           type: 'value',
@@ -489,44 +537,6 @@ async function renderChart() {
           },
         },
     series,
-=======
-    xAxis: {
-      type: 'category',
-      data: chartConfig.value.categories,
-      axisLine: { lineStyle: { color: chartGridColor } },
-      axisTick: { lineStyle: { color: chartGridColor } },
-      axisLabel: {
-        color: chartMutedColor,
-        interval: 0,
-        rotate: chartConfig.value.categories.length > 5 ? 20 : 0,
-      },
-    },
-    yAxis: {
-      type: 'value',
-      axisLine: { lineStyle: { color: chartGridColor } },
-      splitLine: { lineStyle: { color: chartGridColor } },
-      axisLabel: {
-        color: chartMutedColor,
-        formatter(value) {
-          return isCurrencySeries
-            ? currencyFormatter.format(Number(value))
-            : Number(value).toLocaleString('pt-BR')
-        },
-      },
-    },
-    series: [
-      {
-        name: chartConfig.value.valueColumn,
-        type: 'bar',
-        barWidth: '52%',
-        data: chartConfig.value.seriesData,
-        itemStyle: {
-          borderRadius: [10, 10, 0, 0],
-          color: isDarkTheme ? '#4b1c73' : '#5cb3a1',
-        },
-      },
-    ],
->>>>>>> branch-thami
   }, true)
   chartInstance.resize()
 }
@@ -581,6 +591,17 @@ function logout() {
   router.push({ name: 'login' })
 }
 
+function applyTheme(nextTheme) {
+  theme.value = nextTheme
+  document.documentElement.dataset.theme = nextTheme
+  window.localStorage.setItem('theme', nextTheme)
+  window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: nextTheme } }))
+}
+
+function toggleTheme() {
+  applyTheme(isDarkTheme.value ? 'light' : 'dark')
+}
+
 function handleThemeChange(event) {
   theme.value = event.detail?.theme || document.documentElement.dataset.theme || 'light'
   renderChart()
@@ -599,7 +620,7 @@ watch(
       return
     }
 
-    selectedMonths.value = [...new Set(rows.map((row) => String(row.mes)))].sort((left, right) => left.localeCompare(right))
+    selectedMonths.value = [...new Set(rows.map((row) => String(row.mes)))].sort(compareMonthValues)
   },
   { immediate: true }
 )
@@ -615,7 +636,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="prompt-layout" :class="{ 'prompt-layout--history-collapsed': historyCollapsed }">
+  <main
+    class="prompt-layout"
+    :class="{
+      'prompt-layout--history-collapsed': historyCollapsed,
+      'prompt-layout--dark': isDarkTheme,
+    }"
+  >
     <aside class="history-sidebar" :class="{ 'history-sidebar--collapsed': historyCollapsed }">
       <div class="history-panel">
         <div class="history-header">
@@ -675,7 +702,13 @@ onBeforeUnmount(() => {
           </p>
         </div>
 
-        <button type="button" class="secondary-button" @click="logout">Sair</button>
+        <div class="topbar-actions">
+          <button type="button" class="theme-action" :aria-pressed="isDarkTheme" @click="toggleTheme">
+            <span class="theme-action__icon" aria-hidden="true"></span>
+            {{ isDarkTheme ? 'Claro' : 'Escuro' }}
+          </button>
+          <button type="button" class="secondary-button" @click="logout">Sair</button>
+        </div>
       </header>
 
       <section v-if="isCheckingAuth" class="status-card">
@@ -706,7 +739,6 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="result" class="result-grid">
-<<<<<<< HEAD
           <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
             <h2>Interpretação da pergunta</h2>
             <ul>
@@ -714,15 +746,6 @@ onBeforeUnmount(() => {
               <li><strong>Métrica:</strong> {{ result.interpretation.metric }}</li>
               <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
               <li><strong>Período:</strong> {{ result.interpretation.period_label }}</li>
-=======
-          <article v-if="isAdmin" class="result-card">
-            <h2>Interpretação da pergunta</h2>
-            <ul>
-              <li><strong>Dominio:</strong> {{ result.interpretation.domain }}</li>
-              <li><strong>Metrica:</strong> {{ result.interpretation.metric }}</li>
-              <li><strong>Dimensões:</strong> {{ result.interpretation.dimensions.join(', ') }}</li>
-              <li><strong>Período:</strong> últimos {{ result.interpretation.period_months }} meses</li>
->>>>>>> branch-thami
               <li><strong>Visual sugerido:</strong> {{ result.interpretation.chart_suggestion }}</li>
             </ul>
           </article>
@@ -762,11 +785,10 @@ onBeforeUnmount(() => {
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
             <p v-if="result.preview_row_count" class="result-caption">
-<<<<<<< HEAD
               {{ filteredPreviewRows.length }} linha(s) visível(is) de {{ result.preview_row_count }} retornada(s) para validação rápida.
-=======
-              {{ result.preview_row_count }} linha(s) retornada(s) para validação rápida.
->>>>>>> branch-thami
+            </p>
+            <p v-if="visibleMonthRangeLabel" class="result-caption">
+              Período exibido: <strong>{{ visibleMonthRangeLabel }}</strong>.
             </p>
             <div v-if="monthOptions.length" class="month-filter">
               <div class="month-filter__header">
@@ -809,7 +831,6 @@ onBeforeUnmount(() => {
             </p>
           </article>
 
-<<<<<<< HEAD
           <article v-if="chartConfig && filteredPreviewRows.length" class="result-card result-card--wide">
             <h2>Visualização gráfica</h2>
             <p class="result-caption">
@@ -821,22 +842,11 @@ onBeforeUnmount(() => {
               <template v-if="chartConfig.series_column">
                 , segmentado por <strong>{{ chartConfig.series_column }}</strong>
               </template>.
-=======
-          <article v-if="chartConfig" class="result-card result-card--wide">
-            <h2>Visualização gráfica</h2>
-            <p class="result-caption">
-              Gráfico montado a partir das colunas <strong>{{ chartConfig.categoryColumn }}</strong> e
-              <strong>{{ chartConfig.valueColumn }}</strong>.
->>>>>>> branch-thami
             </p>
             <div ref="chartElement" class="chart-surface"></div>
           </article>
 
-<<<<<<< HEAD
           <article v-if="isAdmin && result.draft_script" class="result-card result-card--wide result-card--sql">
-=======
-          <article v-if="isAdmin" class="result-card result-card--wide result-card--sql">
->>>>>>> branch-thami
             <h2>SQL gerado</h2>
             <pre>{{ result.draft_script }}</pre>
           </article>
@@ -887,7 +897,6 @@ onBeforeUnmount(() => {
     background 220ms ease,
     border-color 220ms ease,
     box-shadow 220ms ease;
-<<<<<<< HEAD
 }
 
 .history-panel {
@@ -953,6 +962,18 @@ onBeforeUnmount(() => {
   box-shadow: 0 0 0 3px rgba(244, 162, 97, 0.18);
 }
 
+.prompt-layout--dark .history-item {
+  background: #7c3aed;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.18);
+}
+
+.prompt-layout--dark .history-item--active {
+  border-color: rgba(207, 217, 255, 0.95);
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, 0.28),
+    0 12px 28px rgba(124, 58, 237, 0.24);
+}
+
 .history-meta {
   color: rgba(248, 251, 255, 0.74);
   font-size: 0.82rem;
@@ -1009,8 +1030,6 @@ onBeforeUnmount(() => {
   min-width: 58px;
   height: 46px;
   padding: 0.85rem 0;
-=======
->>>>>>> branch-thami
 }
 
 .topbar {
@@ -1019,6 +1038,14 @@ onBeforeUnmount(() => {
   gap: 1rem;
   align-items: flex-start;
   padding: 1.5rem;
+}
+
+.topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex: 0 0 auto;
 }
 
 .eyebrow {
@@ -1094,6 +1121,32 @@ button {
   box-shadow: var(--button-shadow);
 }
 
+.theme-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.9rem;
+  background:
+    var(--secondary-button-surface) padding-box,
+    var(--button-border) border-box;
+  color: var(--secondary-button-text);
+  box-shadow: var(--button-shadow);
+}
+
+.theme-action__icon {
+  flex: 0 0 0.9rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: inset -0.28rem -0.16rem 0 rgba(255, 248, 224, 0.9);
+}
+
+:global(:root[data-theme='dark']) .theme-action__icon {
+  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.12);
+}
+
 button:disabled {
   opacity: 0.72;
   cursor: progress;
@@ -1149,15 +1202,19 @@ button:disabled {
 .result-caption {
   margin: 1rem 0 0;
   color: var(--text-secondary);
-<<<<<<< HEAD
 }
 
 .month-filter {
   margin-top: 1rem;
   padding: 1rem;
-  border: 1px solid rgba(16, 36, 58, 0.08);
+  border: 1px solid var(--panel-border);
   border-radius: 18px;
-  background: #f8fbff;
+  background: var(--surface-bg);
+  color: var(--text-primary);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease;
 }
 
 .month-filter__header {
@@ -1176,8 +1233,9 @@ button:disabled {
 
 .month-filter__action,
 .month-chip {
-  background: #edf3f9;
-  color: #0f2742;
+  background: var(--secondary-button-fill);
+  color: var(--secondary-button-text);
+  border: 1px solid var(--panel-border);
   border-radius: 999px;
   padding: 0.55rem 0.9rem;
   font-weight: 700;
@@ -1186,8 +1244,26 @@ button:disabled {
 .month-chip--active {
   background: #0f2742;
   color: #ffffff;
-=======
->>>>>>> branch-thami
+  border-color: transparent;
+}
+
+.prompt-layout--dark .month-filter {
+  background: rgba(14, 27, 38, 0.86);
+  border-color: rgba(220, 235, 255, 0.16);
+}
+
+.prompt-layout--dark .month-filter__action,
+.prompt-layout--dark .month-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f6fbff;
+  border-color: rgba(220, 235, 255, 0.16);
+}
+
+.prompt-layout--dark .month-chip--active {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.38);
 }
 
 .table-wrapper {
@@ -1225,11 +1301,8 @@ button:disabled {
   width: 100%;
   min-height: 360px;
   border-radius: 18px;
-<<<<<<< HEAD
   padding: 0.5rem;
   border: 1px solid var(--panel-border);
-=======
->>>>>>> branch-thami
   background: linear-gradient(180deg, var(--surface-bg) 0%, var(--surface-strong) 100%);
 }
 
@@ -1296,6 +1369,11 @@ button:disabled {
     padding: 1rem;
   }
 
+  .topbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
   .topbar h1 {
     font-size: clamp(1.25rem, 6vw, 1.55rem);
     line-height: 1.18;
@@ -1330,8 +1408,9 @@ button:disabled {
   }
 
   .actions button,
+  .theme-action,
   .secondary-button {
-    width: 100%;
+    flex: 1 1 8rem;
     min-height: 2.8rem;
   }
 

@@ -23,4 +23,7 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'esnext',
   },
+  optimizeDeps: {
+    entries: ['index.html'],
+  },
 }))

@@ -1,10 +1,6 @@
 <template>
   <div class="app-shell">
     <canvas v-if="!isNativeApp" id="particles-canvas"></canvas>
-    <button type="button" class="theme-toggle" :aria-pressed="isDarkTheme" @click="toggleTheme">
-      <span class="theme-toggle__icon" aria-hidden="true"></span>
-      {{ isDarkTheme ? 'Claro' : 'Escuro' }}
-    </button>
     <router-view />
   </div>
 </template>
@@ -177,61 +173,9 @@ button {
   z-index: 1;
 }
 
-.theme-toggle {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  z-index: 5;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.55rem;
-  max-width: calc(100vw - 1.5rem);
-  padding: 0.65rem 0.9rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background:
-    var(--secondary-button-surface) padding-box,
-    var(--button-border) border-box;
-  color: var(--secondary-button-text);
-  box-shadow: var(--button-shadow);
-  font-weight: 800;
-  cursor: pointer;
-  backdrop-filter: blur(18px) saturate(1.2);
-}
-
-.theme-toggle__icon {
-  flex: 0 0 0.9rem;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow: inset -0.28rem -0.16rem 0 rgba(255, 248, 224, 0.9);
-}
-
-:root[data-theme='dark'] .theme-toggle__icon {
-  box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.12);
-}
-
 @media (max-width: 480px) {
   body {
     background-attachment: scroll;
-  }
-
-  .theme-toggle {
-    top: 0.6rem;
-    right: 0.6rem;
-    min-height: 2.35rem;
-    padding: 0.55rem 0.7rem;
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 360px) {
-  .theme-toggle {
-    gap: 0.35rem;
-    padding: 0.5rem 0.62rem;
-    font-size: 0.82rem;
   }
 }
 </style>
@@ -274,6 +218,7 @@ export default {
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('mouseleave', this.handleMouseLeave);
     window.addEventListener('resize', this.handleResize);
+    window.addEventListener('themechange', this.handleThemeChange);
   },
   beforeUnmount() {
     if (this.animationFrameId) {
@@ -283,6 +228,7 @@ export default {
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseleave', this.handleMouseLeave);
     window.removeEventListener('resize', this.handleResize);
+    window.removeEventListener('themechange', this.handleThemeChange);
   },
   methods: {
     applyTheme() {
@@ -290,9 +236,11 @@ export default {
       window.localStorage.setItem('theme', this.theme);
       window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: this.theme } }));
     },
-    toggleTheme() {
-      this.theme = this.isDarkTheme ? 'light' : 'dark';
-      this.applyTheme();
+    handleThemeChange(event) {
+      const nextTheme = event.detail?.theme;
+      if (nextTheme === 'dark' || nextTheme === 'light') {
+        this.theme = nextTheme;
+      }
     },
     setupCanvas() {
       this.canvas = document.getElementById('particles-canvas');
