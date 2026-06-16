@@ -5,6 +5,7 @@ dist-ssr/
 *.log
 .env
 .env.android
+.codex
 .vscode/*
 !.vscode/extensions.json
 __pycache__/
