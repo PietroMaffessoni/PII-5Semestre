@@ -20,6 +20,10 @@ export default defineConfig(({ command }) => ({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
   build: {
     target: 'esnext',
   },
