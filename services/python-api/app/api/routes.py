@@ -33,17 +33,44 @@ def filter_script_response_by_role(draft: dict, role: str | None) -> dict:
     if role == "admin":
         return draft
 
-    return {
+    response = {
         "question": draft["question"],
         "context": draft.get("context"),
         "status": draft["status"],
         "is_understood": draft.get("is_understood", True),
         "user_message": draft.get("user_message"),
         "requested_by": draft.get("requested_by"),
-        "preview_rows": draft.get("preview_rows", []),
         "preview_row_count": draft.get("preview_row_count", 0),
         "chart_payload": draft.get("chart_payload"),
     }
+
+    if role != "gerente":
+        response["preview_rows"] = draft.get("preview_rows", [])
+
+    return response
+
+
+def filter_history_item_by_role(item: dict, role: str | None) -> dict:
+    preview_rows = item.get("result_preview") or []
+    filtered = {
+        "id": item.get("id"),
+        "requested_by": item.get("requested_by"),
+        "question": item.get("question"),
+        "execution_status": item.get("execution_status"),
+        "row_count": item.get("row_count", len(preview_rows)),
+        "chart_payload": build_chart_payload(preview_rows),
+        "created_at": item.get("created_at"),
+    }
+
+    if role == "admin":
+        filtered["result_preview"] = preview_rows
+        filtered["generated_sql"] = item.get("generated_sql")
+        filtered["retrieval_mode"] = item.get("retrieval_mode")
+        filtered["requester_role"] = item.get("requester_role")
+    elif role != "gerente":
+        filtered["result_preview"] = preview_rows
+
+    return filtered
 
 
 def get_current_user(
@@ -152,12 +179,22 @@ def get_script_history(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     role = current_user.get("role")
+    requester_roles = None
+    requested_by = current_user["usuario"]
+
+    if role == "admin":
+        requested_by = None
+    elif role == "gerente":
+        requested_by = None
+        requester_roles = ["gerente", "funcionario"]
+
     history = list_query_history(
         limit=limit,
-        requested_by=None if role in {"admin", "gerente"} else current_user["usuario"],
+        requested_by=requested_by,
+        requester_roles=requester_roles,
     )
     return {
         "requested_by": current_user["usuario"],
         "role": role,
-        "items": history,
+        "items": [filter_history_item_by_role(item, role) for item in history],
     }

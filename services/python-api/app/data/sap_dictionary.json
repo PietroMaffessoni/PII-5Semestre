@@ -14,6 +14,11 @@
       "name": "compras",
       "business_terms": ["compra", "fornecedor", "pedido", "gasto", "valor comprado", "material", "compras", "pedido de compra", "aquisicao", "suprimentos", "despesa", "custo de compra", "procurement"],
       "chart_recommendation": "grafico de barras por fornecedor ou material"
+    },
+    {
+      "name": "financeiro",
+      "business_terms": ["financeiro", "folha", "folha de pagamento", "salario", "salarios", "salario medio", "media salarial", "rendimento", "rendimentos", "beneficio", "beneficios", "encargo", "encargos", "desconto", "descontos", "custo de pessoal", "departamento", "centro de custo", "cargo", "remuneracao", "recursos humanos", "rh", "payroll"],
+      "chart_recommendation": "grafico de linhas ou colunas por mes e departamento"
     }
   ],
   "tables": [
@@ -99,6 +104,29 @@
         {"name": "MATNR", "label": "material", "type": "text", "description": "Codigo do material"},
         {"name": "MENGE", "label": "quantidade_comprada", "type": "number", "description": "Quantidade comprada"},
         {"name": "NETWR", "label": "valor_comprado", "type": "number", "description": "Valor liquido do item"}
+      ]
+    },
+    {
+      "name": "ZHR_FOLHA",
+      "module": "FI-HR",
+      "domain": "financeiro",
+      "description": "Resumo mensal agregado da folha de pagamento por departamento e cargo",
+      "business_terms": ["folha de pagamento", "salario", "salario bruto", "salario liquido", "salario medio", "media salarial", "rendimento", "beneficio", "encargo", "desconto", "custo total da folha", "departamento", "centro de custo", "cargo", "remuneracao", "recursos humanos", "rh"],
+      "join_keys": ["KOSTL", "DEPARTAMENTO", "CARGO"],
+      "fields": [
+        {"name": "DOCFOLHA", "label": "documento_folha", "type": "text", "description": "Identificador do resumo mensal da folha"},
+        {"name": "COMPETENCIA", "label": "mes", "type": "date", "description": "Competencia mensal da folha"},
+        {"name": "KOSTL", "label": "centro_custo", "type": "text", "description": "Centro de custo responsavel pela despesa de pessoal"},
+        {"name": "DEPARTAMENTO", "label": "departamento", "type": "text", "description": "Departamento consolidado da folha"},
+        {"name": "CARGO", "label": "cargo", "type": "text", "description": "Cargo ou familia de cargos"},
+        {"name": "QTD_FUNC", "label": "quantidade_funcionarios", "type": "number", "description": "Quantidade de funcionarios no grupo"},
+        {"name": "SAL_BASE", "label": "salario_base", "type": "number", "description": "Soma do salario base"},
+        {"name": "REND_TOTAL", "label": "rendimento_total", "type": "number", "description": "Soma dos rendimentos brutos"},
+        {"name": "BENEFICIOS", "label": "beneficios", "type": "number", "description": "Valor total de beneficios"},
+        {"name": "DESCONTOS", "label": "descontos", "type": "number", "description": "Valor total de descontos"},
+        {"name": "ENCARGOS", "label": "encargos", "type": "number", "description": "Encargos patronais estimados"},
+        {"name": "SAL_LIQUIDO", "label": "salario_liquido", "type": "number", "description": "Valor liquido pago aos funcionarios"},
+        {"name": "CUSTO_TOTAL", "label": "custo_total_folha", "type": "number", "description": "Custo total da folha incluindo rendimentos, beneficios e encargos"}
       ]
     }
   ]

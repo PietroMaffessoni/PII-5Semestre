@@ -10,7 +10,7 @@ from app.core.db import get_connection
 
 
 MAX_PREVIEW_ROWS = 100
-ALLOWED_TABLES = {"afko", "afpo", "vbrk", "vbrp", "ekko", "ekpo"}
+ALLOWED_TABLES = {"afko", "afpo", "vbrk", "vbrp", "ekko", "ekpo", "zhr_folha"}
 MONTH_LABELS = {
     "01": "Janeiro",
     "02": "Fevereiro",
@@ -135,8 +135,8 @@ def _format_chart_axis_label(column: str, value) -> str:
     if column == "mes":
         match = re.match(r"^(\d{4})-(\d{2})-", str(value))
         if match:
-            _, month = match.groups()
-            return MONTH_SHORT_LABELS.get(month, str(value))
+            year, month = match.groups()
+            return f"{MONTH_SHORT_LABELS.get(month, month)}/{year}"
 
     return str(value)
 
@@ -263,8 +263,22 @@ def build_chart_payload(rows: list[dict]) -> dict | None:
         "series_column": series_column,
         "labels": labels,
         "series": series_payload,
-        "value_format": "currency" if "valor" in value_column.lower() else "number",
+        "value_format": "currency" if _is_currency_metric(value_column) else "number",
     }
+
+
+def _is_currency_metric(column: str) -> bool:
+    normalized = column.lower()
+    currency_terms = (
+        "valor",
+        "salario",
+        "rendimento",
+        "beneficio",
+        "desconto",
+        "encargo",
+        "custo",
+    )
+    return any(term in normalized for term in currency_terms)
 
 
 def _is_number(value) -> bool:
@@ -317,13 +331,40 @@ def save_query_history(
         connection.commit()
 
 
-def list_query_history(limit: int = 20, requested_by: str | None = None) -> list[dict]:
-    if requested_by:
+def list_query_history(
+    limit: int = 20,
+    requested_by: str | None = None,
+    requester_roles: list[str] | None = None,
+) -> list[dict]:
+    if requester_roles:
+        query = """
+            SELECT
+                history.id,
+                history.user_id,
+                history.requested_by,
+                users.role AS requester_role,
+                history.question,
+                history.generated_sql,
+                history.retrieval_mode,
+                history.execution_status,
+                history.row_count,
+                history.result_preview,
+                history.created_at
+            FROM script_query_history AS history
+            LEFT JOIN usuarios AS users
+              ON users.id = history.user_id
+            WHERE users.role = ANY(%s)
+            ORDER BY history.created_at DESC
+            LIMIT %s
+        """
+        params = (requester_roles, limit)
+    elif requested_by:
         query = """
             SELECT
                 id,
                 user_id,
                 requested_by,
+                NULL AS requester_role,
                 question,
                 generated_sql,
                 retrieval_mode,
@@ -343,6 +384,7 @@ def list_query_history(limit: int = 20, requested_by: str | None = None) -> list
                 id,
                 user_id,
                 requested_by,
+                NULL AS requester_role,
                 question,
                 generated_sql,
                 retrieval_mode,

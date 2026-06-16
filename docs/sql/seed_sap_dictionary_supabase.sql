@@ -91,7 +91,8 @@ INSERT INTO sap_domains (name, chart_recommendation)
 VALUES
     ('producao', 'grafico de colunas por mes e planta'),
     ('faturamento', 'grafico de linhas ou colunas por mes'),
-    ('compras', 'grafico de barras por fornecedor ou material')
+    ('compras', 'grafico de barras por fornecedor ou material'),
+    ('financeiro', 'grafico de linhas ou colunas por mes e departamento')
 ON CONFLICT (name) DO UPDATE
 SET chart_recommendation = EXCLUDED.chart_recommendation;
 
@@ -120,7 +121,24 @@ JOIN (
         ('compras', 'pedido'),
         ('compras', 'gasto'),
         ('compras', 'valor comprado'),
-        ('compras', 'material')
+        ('compras', 'material'),
+        ('financeiro', 'financeiro'),
+        ('financeiro', 'folha'),
+        ('financeiro', 'folha de pagamento'),
+        ('financeiro', 'salario'),
+        ('financeiro', 'salario medio'),
+        ('financeiro', 'media salarial'),
+        ('financeiro', 'rendimento'),
+        ('financeiro', 'beneficio'),
+        ('financeiro', 'encargo'),
+        ('financeiro', 'desconto'),
+        ('financeiro', 'custo de pessoal'),
+        ('financeiro', 'departamento'),
+        ('financeiro', 'centro de custo'),
+        ('financeiro', 'cargo'),
+        ('financeiro', 'remuneracao'),
+        ('financeiro', 'recursos humanos'),
+        ('financeiro', 'rh')
 ) AS v(domain_name, term)
     ON d.name = v.domain_name
 ON CONFLICT (domain_id, term) DO NOTHING;
@@ -135,7 +153,8 @@ JOIN (
         ('VBRK', 'SD', 'faturamento', 'Cabecalho do documento de faturamento'),
         ('VBRP', 'SD', 'faturamento', 'Itens do documento de faturamento'),
         ('EKKO', 'MM', 'compras', 'Cabecalho do pedido de compra'),
-        ('EKPO', 'MM', 'compras', 'Itens do pedido de compra')
+        ('EKPO', 'MM', 'compras', 'Itens do pedido de compra'),
+        ('ZHR_FOLHA', 'FI-HR', 'financeiro', 'Resumo mensal agregado da folha de pagamento por departamento e cargo')
 ) AS v(table_name, module, domain_name, description)
     ON d.name = v.domain_name
 ON CONFLICT (name) DO UPDATE
@@ -175,7 +194,24 @@ JOIN (
         ('EKKO', 'grupo de compras'),
         ('EKPO', 'material comprado'),
         ('EKPO', 'valor comprado'),
-        ('EKPO', 'quantidade comprada')
+        ('EKPO', 'quantidade comprada'),
+        ('ZHR_FOLHA', 'folha de pagamento'),
+        ('ZHR_FOLHA', 'salario'),
+        ('ZHR_FOLHA', 'salario bruto'),
+        ('ZHR_FOLHA', 'salario liquido'),
+        ('ZHR_FOLHA', 'salario medio'),
+        ('ZHR_FOLHA', 'media salarial'),
+        ('ZHR_FOLHA', 'rendimento'),
+        ('ZHR_FOLHA', 'beneficio'),
+        ('ZHR_FOLHA', 'encargo'),
+        ('ZHR_FOLHA', 'desconto'),
+        ('ZHR_FOLHA', 'custo total da folha'),
+        ('ZHR_FOLHA', 'departamento'),
+        ('ZHR_FOLHA', 'centro de custo'),
+        ('ZHR_FOLHA', 'cargo'),
+        ('ZHR_FOLHA', 'remuneracao'),
+        ('ZHR_FOLHA', 'recursos humanos'),
+        ('ZHR_FOLHA', 'rh')
 ) AS v(table_name, term)
     ON t.name = v.table_name
 ON CONFLICT (table_id, term) DO NOTHING;
@@ -196,7 +232,10 @@ JOIN (
         ('EKKO', 'EBELN'),
         ('EKKO', 'LIFNR'),
         ('EKPO', 'EBELN'),
-        ('EKPO', 'MATNR')
+        ('EKPO', 'MATNR'),
+        ('ZHR_FOLHA', 'KOSTL'),
+        ('ZHR_FOLHA', 'DEPARTAMENTO'),
+        ('ZHR_FOLHA', 'CARGO')
 ) AS v(table_name, join_key)
     ON t.name = v.table_name
 ON CONFLICT (table_id, join_key) DO NOTHING;
@@ -229,7 +268,20 @@ JOIN (
         ('EKPO', 'EBELN', 'pedido_compra', 'text', 'Numero do pedido de compra'),
         ('EKPO', 'MATNR', 'material', 'text', 'Codigo do material'),
         ('EKPO', 'MENGE', 'quantidade_comprada', 'number', 'Quantidade comprada'),
-        ('EKPO', 'NETWR', 'valor_comprado', 'number', 'Valor liquido do item')
+        ('EKPO', 'NETWR', 'valor_comprado', 'number', 'Valor liquido do item'),
+        ('ZHR_FOLHA', 'DOCFOLHA', 'documento_folha', 'text', 'Identificador do resumo mensal da folha'),
+        ('ZHR_FOLHA', 'COMPETENCIA', 'mes', 'date', 'Competencia mensal da folha'),
+        ('ZHR_FOLHA', 'KOSTL', 'centro_custo', 'text', 'Centro de custo responsavel pela despesa de pessoal'),
+        ('ZHR_FOLHA', 'DEPARTAMENTO', 'departamento', 'text', 'Departamento consolidado da folha'),
+        ('ZHR_FOLHA', 'CARGO', 'cargo', 'text', 'Cargo ou familia de cargos'),
+        ('ZHR_FOLHA', 'QTD_FUNC', 'quantidade_funcionarios', 'number', 'Quantidade de funcionarios no grupo'),
+        ('ZHR_FOLHA', 'SAL_BASE', 'salario_base', 'number', 'Soma do salario base'),
+        ('ZHR_FOLHA', 'REND_TOTAL', 'rendimento_total', 'number', 'Soma dos rendimentos brutos'),
+        ('ZHR_FOLHA', 'BENEFICIOS', 'beneficios', 'number', 'Valor total de beneficios'),
+        ('ZHR_FOLHA', 'DESCONTOS', 'descontos', 'number', 'Valor total de descontos'),
+        ('ZHR_FOLHA', 'ENCARGOS', 'encargos', 'number', 'Encargos patronais estimados'),
+        ('ZHR_FOLHA', 'SAL_LIQUIDO', 'salario_liquido', 'number', 'Valor liquido pago aos funcionarios'),
+        ('ZHR_FOLHA', 'CUSTO_TOTAL', 'custo_total_folha', 'number', 'Custo total da folha incluindo rendimentos, beneficios e encargos')
 ) AS v(table_name, field_name, label, data_type, description)
     ON t.name = v.table_name
 ON CONFLICT (table_id, field_name) DO UPDATE

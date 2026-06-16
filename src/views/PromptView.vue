@@ -25,8 +25,25 @@ let echartsModule = null
 const welcomeLabel = computed(() => currentUser.value?.usuario || 'usuário autenticado')
 const currentRole = computed(() => currentUser.value?.role || '')
 const isAdmin = computed(() => currentRole.value === 'admin')
-const canViewAllHistory = computed(() => ['admin', 'gerente'].includes(currentRole.value))
+const isManager = computed(() => currentRole.value === 'gerente')
+const canViewSharedHistory = computed(() => isAdmin.value || isManager.value)
+const historyScopeLabel = computed(() => {
+  if (isAdmin.value) {
+    return 'Visível para todos os usuários cadastrados.'
+  }
+
+  if (isManager.value) {
+    return 'Visível para gerentes e funcionários.'
+  }
+
+  return 'Mostrando apenas as suas consultas.'
+})
 const hasUsableInterpretation = computed(() => Boolean(result.value?.is_understood))
+const hasAdminDetails = computed(() => (
+  isAdmin.value
+  && hasUsableInterpretation.value
+  && Boolean(result.value?.interpretation)
+))
 const isDarkTheme = computed(() => theme.value === 'dark')
 const previewColumns = computed(() => {
   if (!result.value?.preview_rows?.length) {
@@ -36,16 +53,24 @@ const previewColumns = computed(() => {
   return Object.keys(result.value.preview_rows[0])
 })
 const monthOptions = computed(() => {
-  if (!result.value?.preview_rows?.length || !previewColumns.value.includes('mes')) {
+  if (result.value?.preview_rows?.length && previewColumns.value.includes('mes')) {
+    const uniqueValues = [...new Set(result.value.preview_rows.map((row) => String(row.mes)))]
+      .sort(compareMonthValues)
+
+    return uniqueValues.map((value) => ({
+      value,
+      label: formatPreviewValue('mes', value),
+    }))
+  }
+
+  const payload = result.value?.chart_payload
+  if (payload?.category_column !== 'mes' || !payload.labels?.length) {
     return []
   }
 
-  const uniqueValues = [...new Set(result.value.preview_rows.map((row) => String(row.mes)))]
-    .sort(compareMonthValues)
-
-  return uniqueValues.map((value) => ({
-    value,
-    label: formatPreviewValue('mes', value),
+  return payload.labels.map((label) => ({
+    value: String(label),
+    label: String(label),
   }))
 })
 const filteredPreviewRows = computed(() => {
@@ -65,6 +90,26 @@ const filteredPreviewRows = computed(() => {
 })
 const visibleMonthRangeLabel = computed(() => {
   if (!filteredPreviewRows.value.length || !previewColumns.value.includes('mes')) {
+    if (!selectedMonths.value.length || result.value?.chart_payload?.category_column !== 'mes') {
+      return ''
+    }
+
+    const selectedLabels = monthOptions.value
+      .filter((option) => selectedMonths.value.includes(option.value))
+      .map((option) => option.label)
+
+    if (!selectedLabels.length) {
+      return ''
+    }
+
+    if (selectedLabels.length === 1) {
+      return selectedLabels[0]
+    }
+
+    return `${selectedLabels[0]} a ${selectedLabels[selectedLabels.length - 1]}`
+  }
+
+  if (!previewColumns.value.includes('mes')) {
     return ''
   }
 
@@ -89,7 +134,17 @@ const periodExclusionNotice = computed(() => {
   const monthText = Number(match[1]) === 1 ? 'mes' : 'meses'
   return `"Últimos ${match[1]} ${monthText}" considera meses completos encerrados e não inclui o mês atual. Para incluir o mês atual, especifique isso no prompt.`
 })
-const chartConfig = computed(() => buildLocalChartPayload(filteredPreviewRows.value))
+const chartConfig = computed(() => (
+  buildLocalChartPayload(filteredPreviewRows.value)
+  || filterChartPayloadBySelectedMonths(result.value?.chart_payload)
+  || null
+))
+const hasVisiblePreviewRows = computed(() => filteredPreviewRows.value.length > 0)
+const areAllMonthsSelected = computed(() => (
+  monthOptions.value.length > 0
+  && selectedMonths.value.length === monthOptions.value.length
+  && monthOptions.value.every((option) => selectedMonths.value.includes(option.value))
+))
 const chartTypeLabel = computed(() => {
   const chartType = chartConfig.value?.chart_type
 
@@ -304,7 +359,45 @@ function buildLocalChartPayload(rows) {
     series_column: seriesColumn,
     labels,
     series,
-    value_format: valueColumn.toLowerCase().includes('valor') ? 'currency' : 'number',
+    value_format: isCurrencyMetric(valueColumn) ? 'currency' : 'number',
+  }
+}
+
+function isCurrencyMetric(column) {
+  const normalized = String(column).toLowerCase()
+  return ['valor', 'salario', 'rendimento', 'beneficio', 'desconto', 'encargo', 'custo']
+    .some((term) => normalized.includes(term))
+}
+
+function filterChartPayloadBySelectedMonths(payload) {
+  if (!payload) {
+    return null
+  }
+
+  if (payload.category_column !== 'mes') {
+    return payload
+  }
+
+  if (!selectedMonths.value.length) {
+    return null
+  }
+
+  const selected = new Set(selectedMonths.value)
+  const selectedIndexes = (payload.labels || [])
+    .map((label, index) => ({ label: String(label), index }))
+    .filter((item) => selected.has(item.label))
+
+  if (!selectedIndexes.length) {
+    return null
+  }
+
+  return {
+    ...payload,
+    labels: selectedIndexes.map((item) => item.label),
+    series: (payload.series || []).map((serie) => ({
+      ...serie,
+      data: selectedIndexes.map((item) => serie.data?.[item.index] ?? null),
+    })),
   }
 }
 
@@ -341,6 +434,53 @@ function formatHistoryDate(value) {
   }).format(date)
 }
 
+function getHistoryStatusMessage(item, previewRows) {
+  if (previewRows.length || item.chart_payload) {
+    return ''
+  }
+
+  if (item.execution_status === 'not_understood') {
+    return 'Essa pergunta foi salva no histórico, mas não foi compreendida para gerar uma consulta.'
+  }
+
+  if (item.execution_status === 'no_data') {
+    return 'Essa consulta foi salva no histórico, mas não retornou dados para os filtros informados.'
+  }
+
+  if (item.execution_status === 'blocked') {
+    return 'Essa consulta foi bloqueada na validação de segurança e não possui dados salvos.'
+  }
+
+  return 'Essa consulta não possui dados salvos no histórico.'
+}
+
+function buildResultFromHistoryItem(item) {
+  const previewRows = Array.isArray(item.result_preview) ? item.result_preview : []
+  const isUnderstood = item.execution_status !== 'not_understood'
+  const previewRowCount = Number.isFinite(Number(item.row_count))
+    ? Number(item.row_count)
+    : previewRows.length
+
+  return {
+    question: item.question,
+    context: null,
+    status: item.execution_status || 'history',
+    is_understood: isUnderstood,
+    user_message: getHistoryStatusMessage(item, previewRows),
+    requested_by: item.requested_by,
+    preview_rows: previewRows,
+    preview_row_count: previewRowCount,
+    chart_payload: item.chart_payload || buildLocalChartPayload(previewRows),
+    draft_script: item.generated_sql || '',
+    retrieval_mode: item.retrieval_mode || 'history',
+    interpretation: null,
+    suggested_tables: [],
+    suggested_filters: [],
+    relevant_fields: [],
+    join_suggestions: [],
+  }
+}
+
 async function loadHistory() {
   isLoadingHistory.value = true
 
@@ -357,6 +497,8 @@ async function loadHistory() {
 function selectHistoryItem(item) {
   selectedHistoryId.value = item.id
   prompt.value = item.question
+  errorMessage.value = ''
+  result.value = buildResultFromHistoryItem(item)
 }
 
 function toggleHistory() {
@@ -697,6 +839,19 @@ function selectAllMonths() {
   selectedMonths.value = monthOptions.value.map((item) => item.value)
 }
 
+function clearMonthSelection() {
+  selectedMonths.value = []
+}
+
+function toggleAllMonths() {
+  if (areAllMonthsSelected.value) {
+    clearMonthSelection()
+    return
+  }
+
+  selectAllMonths()
+}
+
 function logout() {
   clearAuthSession()
   router.push({ name: 'login' })
@@ -730,14 +885,14 @@ onMounted(() => {
 })
 
 watch(
-  () => result.value?.preview_rows,
-  (rows) => {
-    if (!rows?.length || !previewColumns.value.includes('mes')) {
+  () => [result.value?.preview_rows, result.value?.chart_payload],
+  () => {
+    if (!monthOptions.value.length) {
       selectedMonths.value = []
       return
     }
 
-    selectedMonths.value = [...new Set(rows.map((row) => String(row.mes)))].sort(compareMonthValues)
+    selectedMonths.value = monthOptions.value.map((item) => item.value)
   },
   { immediate: true }
 )
@@ -767,8 +922,7 @@ onBeforeUnmount(() => {
           <div>
             <span class="eyebrow">Histórico</span>
             <h2>Consultas recentes</h2>
-            <p v-if="!historyCollapsed && canViewAllHistory">Visível para todos os usuários cadastrados.</p>
-            <p v-else-if="!historyCollapsed">Mostrando apenas as suas consultas.</p>
+            <p v-if="!historyCollapsed">{{ historyScopeLabel }}</p>
           </div>
 
           <button
@@ -802,7 +956,7 @@ onBeforeUnmount(() => {
             @click="selectHistoryItem(item)"
           >
             <strong>{{ item.question }}</strong>
-            <span v-if="canViewAllHistory" class="history-meta">{{ item.requested_by }}</span>
+            <span v-if="canViewSharedHistory" class="history-meta">{{ item.requested_by }}</span>
             <span class="history-meta">{{ formatHistoryDate(item.created_at) }}</span>
           </button>
         </div>
@@ -857,7 +1011,7 @@ onBeforeUnmount(() => {
         </section>
 
         <section v-if="result" class="result-grid">
-          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
+          <article v-if="hasAdminDetails" class="result-card">
             <h2>Interpretação da pergunta</h2>
             <ul>
               <li><strong>Domínio:</strong> {{ result.interpretation.domain }}</li>
@@ -868,21 +1022,21 @@ onBeforeUnmount(() => {
             </ul>
           </article>
 
-          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
+          <article v-if="hasAdminDetails" class="result-card">
             <h2>Tabelas sugeridas</h2>
             <ul>
               <li v-for="item in result.suggested_tables" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article v-if="isAdmin && hasUsableInterpretation" class="result-card">
+          <article v-if="hasAdminDetails" class="result-card">
             <h2>Filtros sugeridos</h2>
             <ul>
               <li v-for="item in result.suggested_filters" :key="item">{{ item }}</li>
             </ul>
           </article>
 
-          <article v-if="isAdmin && hasUsableInterpretation" class="result-card result-card--wide">
+          <article v-if="hasAdminDetails" class="result-card result-card--wide">
             <h2>Campos relevantes</h2>
             <div class="field-grid">
               <div v-for="item in result.relevant_fields" :key="`${item.table}-${item.field}`" class="field-chip">
@@ -893,7 +1047,7 @@ onBeforeUnmount(() => {
             </div>
           </article>
 
-          <article v-if="isAdmin && hasUsableInterpretation" class="result-card result-card--wide">
+          <article v-if="hasAdminDetails" class="result-card result-card--wide">
             <h2>Joins sugeridos</h2>
             <ul>
               <li v-for="item in result.join_suggestions" :key="item">{{ item }}</li>
@@ -902,7 +1056,7 @@ onBeforeUnmount(() => {
 
           <article class="result-card result-card--wide">
             <h2>Resultado da busca</h2>
-            <p v-if="result.preview_row_count" class="result-caption">
+            <p v-if="result.preview_row_count && filteredPreviewRows.length" class="result-caption">
               {{ filteredPreviewRows.length }} linha(s) visível(is) de {{ result.preview_row_count }} retornada(s) para validação rápida.
             </p>
             <p v-if="visibleMonthRangeLabel" class="result-caption">
@@ -914,8 +1068,8 @@ onBeforeUnmount(() => {
             <div v-if="monthOptions.length" class="month-filter">
               <div class="month-filter__header">
                 <strong>Filtrar meses</strong>
-                <button type="button" class="month-filter__action" @click="selectAllMonths">
-                  Selecionar todos
+                <button type="button" class="month-filter__action" @click="toggleAllMonths">
+                  {{ areAllMonthsSelected ? 'Desselecionar todos' : 'Selecionar todos' }}
                 </button>
               </div>
               <div class="month-filter__chips">
@@ -931,7 +1085,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
             </div>
-            <div v-if="filteredPreviewRows.length" class="table-wrapper">
+            <div v-if="hasVisiblePreviewRows" class="table-wrapper">
               <table class="preview-table">
                 <thead>
                   <tr>
@@ -947,12 +1101,15 @@ onBeforeUnmount(() => {
                 </tbody>
               </table>
             </div>
+            <p v-else-if="chartConfig" class="result-caption">
+              Resultado disponível na visualização gráfica abaixo.
+            </p>
             <p v-else class="result-caption">
               {{ monthOptions.length ? 'Nenhum mês está selecionado no filtro atual.' : (result.user_message || 'Nenhuma linha foi retornada para este preview.') }}
             </p>
           </article>
 
-          <article v-if="chartConfig && filteredPreviewRows.length" class="result-card result-card--wide">
+          <article v-if="chartConfig" class="result-card result-card--wide">
             <h2>Visualização gráfica</h2>
             <p class="result-caption">
               Tipo escolhido automaticamente: <strong>{{ chartTypeLabel }}</strong>.

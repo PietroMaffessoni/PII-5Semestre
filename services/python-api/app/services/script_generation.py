@@ -42,6 +42,31 @@ BUSINESS_CONTEXT_KEYWORDS = (
     "quantidade",
     "valor",
     "volume",
+    "financeiro",
+    "folha",
+    "salario",
+    "rendimento",
+    "beneficio",
+    "encargo",
+    "desconto",
+    "departamento",
+    "centro de custo",
+    "cargo",
+    "recursos humanos",
+)
+GENERIC_CONTEXT_TERMS = {
+    "mes",
+    "periodo",
+    "ultimos",
+    "trimestre",
+    "semestre",
+    "ano",
+    "valor",
+    "quantidade",
+}
+UNSUPPORTED_BUSINESS_TERMS = (
+    "holerite",
+    "contracheque",
 )
 HIGH_CONFIDENCE_SIMILARITY = 0.52
 MEDIUM_CONFIDENCE_SIMILARITY = 0.40
@@ -234,15 +259,19 @@ def _detect_field_filters(question: str) -> tuple[dict[str, str], list[str]]:
     field_filters: dict[str, str] = {}
     unresolved_filters: list[str] = []
 
-    regional_match = re.search(
-        r"\b(?:regional|organizacao de vendas)\s+([a-z]+(?:[ -][a-z]+)?)\b",
-        normalized,
+    regional_filter = next(
+        (
+            value
+            for alias, value in sorted(REGIONAL_ALIASES.items(), key=lambda item: len(item[0]), reverse=True)
+            if re.search(rf"\b(?:regional|organizacao de vendas)\s+{re.escape(alias)}\b", normalized)
+        ),
+        None,
     )
-    if regional_match:
-        regional_key = regional_match.group(1).strip()
-        field_filters["organizacao_vendas"] = REGIONAL_ALIASES.get(regional_key, regional_key.upper())
+    if regional_filter:
+        field_filters["organizacao_vendas"] = regional_filter
     elif "regional" in normalized or "organizacao de vendas" in normalized:
-        unresolved_filters.append("regional/organizacao de vendas")
+        if not any(term in normalized for term in ("por regional", "por organizacao de vendas")):
+            unresolved_filters.append("regional/organizacao de vendas")
 
     pattern_map = {
         "cliente": r"\bcliente\s+(cli-\d+)\b",
@@ -363,10 +392,15 @@ def _build_retrieval_context(dictionary: dict, question: str) -> RetrievalContex
 def _infer_domain(question: str, dictionary: dict, preferred_domain: str | None = None) -> dict:
     normalized = _normalize(question)
     domain_scores: list[tuple[int, dict]] = []
+    exact_scores = {
+        domain["name"]: _count_domain_specific_terms(normalized, domain)
+        for domain in dictionary["domains"]
+    }
+    has_exact_domain_match = any(score > 0 for score in exact_scores.values())
 
     for domain in dictionary["domains"]:
-        score = sum(1 for term in domain["business_terms"] if _normalize(term) in normalized)
-        if preferred_domain == domain["name"]:
+        score = exact_scores[domain["name"]]
+        if preferred_domain == domain["name"] and (score > 0 or not has_exact_domain_match):
             score += 2
         domain_scores.append((score, domain))
 
@@ -383,11 +417,40 @@ def _get_domain_match_score(question: str, dictionary: dict) -> int:
     normalized = _normalize(question)
     return max(
         (
-            sum(1 for term in domain["business_terms"] if _normalize(term) in normalized)
+            _count_domain_specific_terms(normalized, domain)
             for domain in dictionary["domains"]
         ),
         default=0,
     )
+
+
+def _count_domain_specific_terms(normalized_question: str, domain: dict) -> int:
+    return sum(
+        1
+        for term in domain["business_terms"]
+        if _normalize(term) not in GENERIC_CONTEXT_TERMS and _normalize(term) in normalized_question
+    )
+
+
+def _has_unsupported_business_term(question: str) -> bool:
+    normalized = _normalize(question)
+    return any(term in normalized for term in UNSUPPORTED_BUSINESS_TERMS)
+
+
+def _has_supported_business_term(question: str, dictionary: dict) -> bool:
+    normalized = _normalize(question)
+
+    for domain in dictionary["domains"]:
+        if _count_domain_specific_terms(normalized, domain) > 0:
+            return True
+
+    for table in dictionary["tables"]:
+        if any(_normalize(term) in normalized for term in table["business_terms"]):
+            return True
+        if any(_normalize(field["label"]) in normalized for field in table["fields"]):
+            return True
+
+    return False
 
 
 def _get_business_signal_score(question: str, dictionary: dict) -> int:
@@ -395,7 +458,7 @@ def _get_business_signal_score(question: str, dictionary: dict) -> int:
     score = 0
 
     for domain in dictionary["domains"]:
-        score += sum(1 for term in domain["business_terms"] if _normalize(term) in normalized)
+        score += _count_domain_specific_terms(normalized, domain)
 
     for table in dictionary["tables"]:
         score += sum(1 for term in table["business_terms"] if _normalize(term) in normalized)
@@ -416,8 +479,12 @@ def _matches_expected_prompt_pattern(question: str) -> bool:
 
 
 def _is_question_understood(question: str, dictionary: dict, retrieval: RetrievalContext) -> bool:
+    if _has_unsupported_business_term(question):
+        return False
+
     domain_match_score = _get_domain_match_score(question, dictionary)
     business_signal_score = _get_business_signal_score(question, dictionary)
+    has_supported_business_term = _has_supported_business_term(question, dictionary)
     top_similarity = 0.0
     average_similarity = 0.0
     if retrieval.matches:
@@ -427,18 +494,24 @@ def _is_question_understood(question: str, dictionary: dict, retrieval: Retrieva
             3,
         )
 
-    if top_similarity >= HIGH_CONFIDENCE_SIMILARITY:
+    if top_similarity >= HIGH_CONFIDENCE_SIMILARITY and has_supported_business_term:
         return True
 
     if (
         top_similarity >= MEDIUM_CONFIDENCE_SIMILARITY
         and average_similarity >= 0.34
         and business_signal_score >= 3
+        and has_supported_business_term
         and _matches_expected_prompt_pattern(question)
     ):
         return True
 
-    return domain_match_score >= 2 and business_signal_score >= 4 and _matches_expected_prompt_pattern(question)
+    return (
+        domain_match_score >= 1
+        and business_signal_score >= 3
+        and has_supported_business_term
+        and _matches_expected_prompt_pattern(question)
+    )
 
 
 def _infer_metric(question: str, domain_name: str, preferred_labels: set[str]) -> str:
@@ -449,14 +522,31 @@ def _infer_metric(question: str, domain_name: str, preferred_labels: set[str]) -
             return "valor_faturado"
         if "quantidade_faturada" in preferred_labels:
             return "quantidade_faturada"
-        return "valor_faturado" if "valor" in normalized or "receita" in normalized else "quantidade_faturada"
+        return "quantidade_faturada" if "quantidade" in normalized else "valor_faturado"
 
     if domain_name == "compras":
         if "valor_comprado" in preferred_labels:
             return "valor_comprado"
         if "quantidade_comprada" in preferred_labels:
             return "quantidade_comprada"
-        return "valor_comprado" if "valor" in normalized or "gasto" in normalized else "quantidade_comprada"
+        return "quantidade_comprada" if "quantidade" in normalized else "valor_comprado"
+
+    if domain_name == "financeiro":
+        metric_terms = (
+            ("salario_liquido", ("salario liquido", "liquido")),
+            ("salario_base", ("salario base", "base salarial")),
+            ("salario_medio", ("salario medio", "media salarial", "salario", "salarios")),
+            ("beneficios", ("beneficio", "beneficios")),
+            ("descontos", ("desconto", "descontos")),
+            ("encargos", ("encargo", "encargos")),
+            ("custo_total_folha", ("custo total", "custo da folha", "custo de pessoal", "folha de pagamento", "folha")),
+            ("quantidade_funcionarios", ("quantidade de funcionarios", "qtd funcionarios", "headcount", "funcionarios")),
+            ("rendimento_total", ("rendimento", "rendimentos", "remuneracao")),
+        )
+        for label, terms in metric_terms:
+            if label in preferred_labels or any(term in normalized for term in terms):
+                return label
+        return "custo_total_folha"
 
     return "volume_producao"
 
@@ -475,6 +565,12 @@ def _infer_dimensions(question: str, domain_name: str, preferred_labels: set[str
         dimensions.append("material")
     if "organizacao de vendas" in normalized or "regional" in normalized:
         dimensions.append("organizacao_vendas")
+    if "departamento" in normalized:
+        dimensions.append("departamento")
+    if "centro de custo" in normalized or "centro custo" in normalized:
+        dimensions.append("centro_custo")
+    if "cargo" in normalized:
+        dimensions.append("cargo")
 
     if "mes" in normalized or "mensal" in normalized or "ultimos" in normalized:
         dimensions.append("mes")
@@ -485,6 +581,7 @@ def _infer_dimensions(question: str, domain_name: str, preferred_labels: set[str
             "producao": ["planta", "mes"],
             "faturamento": ["cliente", "mes"],
             "compras": ["fornecedor", "mes"],
+            "financeiro": ["departamento", "mes"],
         }
         return defaults[domain_name]
 
@@ -518,6 +615,12 @@ def _infer_filters(
         filters.append("agrupar por fornecedor")
     if "material" in dimensions:
         filters.append("agrupar por material")
+    if "departamento" in dimensions:
+        filters.append("agrupar por departamento")
+    if "centro_custo" in dimensions:
+        filters.append("agrupar por centro de custo")
+    if "cargo" in dimensions:
+        filters.append("agrupar por cargo")
     for field_name, value in field_filters.items():
         filters.append(f"filtrar por {field_name}: {value}")
     return filters
@@ -668,6 +771,32 @@ def _build_sql(interpretation: Interpretation) -> str:
             "filter_expr": {
                 "fornecedor": "ekko.LIFNR",
                 "material": "ekpo.MATNR",
+            },
+        },
+        "financeiro": {
+            "from_clause": "ZHR_FOLHA folha",
+            "metric_expr": {
+                "salario_base": "SUM(folha.SAL_BASE) AS salario_base",
+                "salario_medio": "ROUND(SUM(folha.SAL_LIQUIDO) / NULLIF(SUM(folha.QTD_FUNC), 0), 2) AS salario_medio",
+                "rendimento_total": "SUM(folha.REND_TOTAL) AS rendimento_total",
+                "beneficios": "SUM(folha.BENEFICIOS) AS beneficios",
+                "descontos": "SUM(folha.DESCONTOS) AS descontos",
+                "encargos": "SUM(folha.ENCARGOS) AS encargos",
+                "salario_liquido": "SUM(folha.SAL_LIQUIDO) AS salario_liquido",
+                "custo_total_folha": "SUM(folha.CUSTO_TOTAL) AS custo_total_folha",
+                "quantidade_funcionarios": "SUM(folha.QTD_FUNC) AS quantidade_funcionarios",
+            },
+            "dimension_expr": {
+                "centro_custo": "folha.KOSTL AS centro_custo",
+                "departamento": "folha.DEPARTAMENTO AS departamento",
+                "cargo": "folha.CARGO AS cargo",
+                "mes": "DATE_TRUNC('month', folha.COMPETENCIA) AS mes",
+            },
+            "where_date": "folha.COMPETENCIA",
+            "filter_expr": {
+                "centro_custo": "folha.KOSTL",
+                "departamento": "folha.DEPARTAMENTO",
+                "cargo": "folha.CARGO",
             },
         },
     }
